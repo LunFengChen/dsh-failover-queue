@@ -1,0 +1,93 @@
+{
+  "name": "@x1a0f3n9/dsh-failover-queue",
+  "version": "0.1.0",
+  "description": "CC Switch-style P1/P2/P3 model failover for DeepSeek Harness. Composer toggle, drag-reorder, same-step retry chain.",
+  "author": "LunFengChen",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LunFengChen/dsh-failover-queue.git"
+  },
+  "homepage": "https://github.com/LunFengChen/dsh-failover-queue",
+  "bugs": {
+    "url": "https://github.com/LunFengChen/dsh-failover-queue/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22.19"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./src/client/index.ts",
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/index.d.ts",
+    "lib/client.js",
+    "lib/client.js.map",
+    "cordis.patch.yml",
+    "README.md",
+    "README.zh.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "plugin": {
+      "title": "Failover queue",
+      "titleZh": "故障转移队列",
+      "description": "P1/P2/P3 provider+model failover with a composer toggle and drag-reorder panel.",
+      "descriptionZh": "P1/P2/P3 供应商+模型故障转移。输入框开关，点进去拖拽改优先级。"
+    },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@x1a0f3n9/dsh-client-locale",
+        "@x1a0f3n9/dsh-client-ui-conversation",
+        "@x1a0f3n9/dsh-client-ui-settings"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "prepare": "node scripts/prepare.mjs",
+    "test": "vitest run",
+    "typecheck": "tsdown"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=4.0.0",
+    "@deepseek-ai/schemastery": ">=3.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "@types/react": "~18.3.1",
+    "react": "^18.2.0",
+    "tsdown": "^0.16.0",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "xfdsh",
+    "plugin",
+    "failover",
+    "priority",
+    "p1",
+    "p2",
+    "p3"
+  ]
+}

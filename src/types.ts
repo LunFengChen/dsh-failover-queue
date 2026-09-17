@@ -1,0 +1,30 @@
+/** One provider+model slot in the failover queue. P1 is index 0. */
+export interface QueueRoute {
+  /** Adapter route key (`GenerateOptions.provider`). */
+  readonly provider: string
+  /** Model id for that route. */
+  readonly model: string
+  /** Optional display label; the chip falls back to `provider/model`. */
+  readonly label?: string
+}
+
+/** Persisted failover document (settings namespace `dsh-failover-queue`). */
+export interface FailoverSettings {
+  /** When false, the plugin never overlays or retries across routes. */
+  enabled: boolean
+  /** Active queue index (P1 = 0). Clamped on read. */
+  currentIndex: number
+  /** Ordered routes. Index 0 is P1. */
+  queue: QueueRoute[]
+}
+
+/** One advertised catalog row the panel can add. */
+export interface FailoverCandidate {
+  readonly provider: string
+  readonly providerName: string
+  readonly model: string
+  readonly name: string
+}
+
+/** Marker the `/failover __candidates` handler prefixes onto JSON. */
+export const CANDIDATES_MARKER = 'FAILOVER_CANDIDATES_V1'
