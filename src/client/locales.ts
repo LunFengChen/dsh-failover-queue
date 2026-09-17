@@ -3,10 +3,12 @@ export const NS = 'failover' as const
 
 /** Keys owned by this dictionary. */
 export type FailoverKey =
+  | 'chip.kicker'
   | 'chip.off'
+  | 'chip.empty'
+  | 'chip.on'
   | 'chip.aria.on'
   | 'chip.aria.off'
-  | 'chip.title.on'
   | 'chip.title.off'
   | 'panel.title'
   | 'panel.switch'
@@ -23,10 +25,12 @@ export type FailoverKey =
   | 'settings.tab'
 
 export const zh: Record<FailoverKey, string> = {
-  'chip.off': 'P-',
-  'chip.aria.on': '故障转移已开启，点击打开 P1/P2/P3 队列',
+  'chip.kicker': '故障转移：',
+  'chip.off': '关',
+  'chip.empty': '无队列',
+  'chip.on': '故障转移：P{slot} {provider}/{model}',
+  'chip.aria.on': '故障转移已开启，当前 P{slot} {provider}/{model}，点击打开队列',
   'chip.aria.off': '故障转移已关闭，点击打开队列',
-  'chip.title.on': '自动故障转移开启。点进去拖拽 P1/P2/P3。',
   'chip.title.off': '自动故障转移关闭。点进去开启并编排队列。',
   'panel.title': '故障转移队列',
   'panel.switch': '自动故障转移',
@@ -44,10 +48,12 @@ export const zh: Record<FailoverKey, string> = {
 }
 
 export const en: Record<FailoverKey, string> = {
-  'chip.off': 'P-',
-  'chip.aria.on': 'Failover on, click to open the P1/P2/P3 queue',
+  'chip.kicker': 'Failover: ',
+  'chip.off': 'Off',
+  'chip.empty': 'empty',
+  'chip.on': 'Failover: P{slot} {provider}/{model}',
+  'chip.aria.on': 'Failover on, current P{slot} {provider}/{model}, click to open the queue',
   'chip.aria.off': 'Failover off, click to open the queue',
-  'chip.title.on': 'Auto failover is on. Click to drag P1/P2/P3.',
   'chip.title.off': 'Auto failover is off. Click to enable and edit the queue.',
   'panel.title': 'Failover queue',
   'panel.switch': 'Auto failover',

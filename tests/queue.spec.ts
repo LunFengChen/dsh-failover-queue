@@ -6,6 +6,7 @@ import {
   dedupeQueue,
   indexAfterReorder,
   reorderQueue,
+  routeDisplay,
   routeKey,
   shouldFailoverImmediately,
 } from '../src/queue.ts'
@@ -50,6 +51,17 @@ describe('queue helpers', () => {
     const codes = ['AUTH', 'RATE_LIMIT', 'NO_ADAPTER']
     expect(shouldFailoverImmediately('RATE_LIMIT', codes)).toBe(true)
     expect(shouldFailoverImmediately('TIMEOUT', codes)).toBe(false)
+  })
+
+  it('names a route from catalog titles, then the stored label', () => {
+    expect(routeDisplay(b)).toEqual({ provider: 'deepseek', model: 'deepseek-chat' })
+    expect(routeDisplay(a)).toEqual({ provider: 'huoshan', model: '火山' })
+    expect(routeDisplay(b, [{
+      provider: 'deepseek',
+      providerName: 'DeepSeek',
+      model: 'deepseek-chat',
+      name: 'DeepSeek Chat',
+    }])).toEqual({ provider: 'DeepSeek', model: 'DeepSeek Chat' })
   })
 })
 

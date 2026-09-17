@@ -1,5 +1,5 @@
 import { useMemo, useState, type DragEvent, type ReactNode } from 'react'
-import { clampIndex, indexAfterReorder, reorderQueue, routeKey } from '../queue.ts'
+import { clampIndex, indexAfterReorder, reorderQueue, routeDisplay, routeKey } from '../queue.ts'
 import type { FailoverKey } from './locales.ts'
 import { CLASS } from './styles.ts'
 import type { FailoverCandidate, FailoverSnapshot, QueueRoute } from './state.ts'
@@ -13,7 +13,7 @@ export interface QueuePanelApi {
 export interface QueuePanelProps {
   readonly state: FailoverSnapshot
   readonly api: QueuePanelApi
-  readonly t: (key: FailoverKey) => string
+  readonly t: (key: FailoverKey, params?: Record<string, string | number>) => string
   readonly onClose?: () => void
 }
 
@@ -93,7 +93,8 @@ export function QueuePanel({ state, api, t, onClose }: QueuePanelProps): ReactNo
         <ul className={CLASS.list}>
           {state.queue.map((route, index) => {
             const active = index === clampIndex(state.currentIndex, state.queue.length)
-            const title = route.label?.trim() || `${route.provider}/${route.model}`
+            const display = routeDisplay(route, state.candidates)
+            const title = `${display.provider}/${display.model}`
             return (
               <li
                 key={routeKey(route)}

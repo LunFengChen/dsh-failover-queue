@@ -14,7 +14,7 @@ interface FailoverClientContext {
   effect(fn: () => (() => void) | void, name?: string): () => void
   locale: {
     register: (ns: string, packs: { zh: typeof zh; en: typeof en }) => () => void
-    bind: (ns: string) => (key: FailoverKey) => string
+    bind: (ns: string) => (key: FailoverKey, params?: Record<string, string | number>) => string
   }
   slots: {
     inject: (name: string, factory: () => () => void) => void

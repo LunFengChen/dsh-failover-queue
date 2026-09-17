@@ -93,6 +93,16 @@ declare function advanceIndex(queue: readonly QueueRoute[], currentIndex: number
  * @param queue - possibly messy user input.
  */
 declare function dedupeQueue(queue: readonly QueueRoute[]): QueueRoute[];
+/**
+ * Names the chip and queue rows show for one route.
+ * Prefers the live catalog's provider/model titles, then the stored label.
+ * @param route - queue slot.
+ * @param candidates - advertised catalog, possibly empty.
+ */
+declare function routeDisplay(route: QueueRoute, candidates?: readonly FailoverCandidate[]): {
+  provider: string;
+  model: string;
+};
 //#endregion
 //#region src/command.d.ts
 /** `/failover` verbs the host handler and tests share. */
@@ -124,4 +134,4 @@ declare const inject: string[];
  */
 declare function apply(ctx: Context, config?: Config): void;
 //#endregion
-export { Config, type Config as ConfigInput, type FailoverCandidate, type FailoverSettings, type QueueRoute, type ResolvedConfig, SETTINGS_NAMESPACE, advanceIndex, apply, clampIndex, dedupeQueue, indexAfterReorder, inject, name, parseFailoverArg, reorderQueue, resolveConfig, routeKey };
+export { Config, type Config as ConfigInput, type FailoverCandidate, type FailoverSettings, type QueueRoute, type ResolvedConfig, SETTINGS_NAMESPACE, advanceIndex, apply, clampIndex, dedupeQueue, indexAfterReorder, inject, name, parseFailoverArg, reorderQueue, resolveConfig, routeDisplay, routeKey };

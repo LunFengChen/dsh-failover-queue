@@ -1,4 +1,4 @@
-import type { QueueRoute } from './types.ts'
+import type { FailoverCandidate, QueueRoute } from './types.ts'
 
 /** Stable identity for cooldown and de-dupe. */
 export function routeKey(route: QueueRoute): string {
@@ -113,4 +113,20 @@ export function dedupeQueue(queue: readonly QueueRoute[]): QueueRoute[] {
     })
   }
   return next
+}
+
+/**
+ * Names the chip and queue rows show for one route.
+ * Prefers the live catalog's provider/model titles, then the stored label.
+ * @param route - queue slot.
+ * @param candidates - advertised catalog, possibly empty.
+ */
+export function routeDisplay(
+  route: QueueRoute,
+  candidates: readonly FailoverCandidate[] = [],
+): { provider: string; model: string } {
+  const hit = candidates.find(row => row.provider === route.provider && row.model === route.model)
+  const provider = hit?.providerName.trim() || route.provider
+  const model = route.label?.trim() || hit?.name.trim() || route.model
+  return { provider, model }
 }

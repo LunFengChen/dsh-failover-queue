@@ -2,6 +2,9 @@
 export const CLASS = {
   chip: 'dsh-fq-chip',
   chipOn: 'dsh-fq-chip-on',
+  chipKicker: 'dsh-fq-chip-kicker',
+  chipPriority: 'dsh-fq-chip-priority',
+  chipRoute: 'dsh-fq-chip-route',
   panel: 'dsh-fq-panel',
   head: 'dsh-fq-head',
   title: 'dsh-fq-title',
@@ -30,6 +33,8 @@ export const STYLE = `
 .dsh-fq-chip {
   display: inline-flex;
   align-items: center;
+  gap: 4px;
+  max-width: min(280px, 42vw);
   height: 22px;
   padding: 0 8px;
   border: 0;
@@ -38,9 +43,11 @@ export const STYLE = `
   color: var(--dsw-alias-label-secondary, inherit);
   font-size: 12px;
   line-height: 22px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-weight: 500;
+  letter-spacing: 0.01em;
   cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
 }
 .dsh-fq-chip:hover {
   background: var(--dsw-alias-interactive-bg-hover, rgba(255,255,255,0.10));
@@ -48,6 +55,20 @@ export const STYLE = `
 .dsh-fq-chip-on {
   background: color-mix(in srgb, var(--dsw-alias-label-accent, #34d399) 16%, transparent);
   color: var(--dsw-alias-label-accent, #34d399);
+}
+.dsh-fq-chip-kicker {
+  flex-shrink: 0;
+  font-weight: 600;
+}
+.dsh-fq-chip-priority {
+  flex-shrink: 0;
+  font-weight: 700;
+}
+.dsh-fq-chip-route {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .dsh-fq-panel {
   position: fixed;

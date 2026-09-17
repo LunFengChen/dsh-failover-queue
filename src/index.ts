@@ -39,6 +39,7 @@ export {
   dedupeQueue,
   indexAfterReorder,
   reorderQueue,
+  routeDisplay,
   routeKey,
 } from './queue.ts'
 export { parseFailoverArg } from './command.ts'

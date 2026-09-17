@@ -1,10 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { clampIndex } from '../queue.ts'
+import { clampIndex, routeDisplay } from '../queue.ts'
 import type { FailoverKey } from './locales.ts'
 import { QueuePanel, type QueuePanelApi } from './QueuePanel.tsx'
 import { CLASS } from './styles.ts'
 import type { FailoverSnapshot } from './state.ts'
+
+type Translate = (key: FailoverKey, params?: Record<string, string | number>) => string
 
 /** Registration-side face plus the renderer-bound snapshot hook. */
 export interface FailoverChipInjected {
@@ -16,15 +18,52 @@ export interface FailoverChipInjected {
 
 export interface FailoverChipProps extends FailoverChipInjected {
   sessionId?: string
-  t: (key: FailoverKey) => string
+  t: Translate
 }
 
 function sessionOf(props: FailoverChipProps): string {
   return props.sessionId ?? props.getSessionId?.() ?? ''
 }
 
+function chipCopy(state: FailoverSnapshot, t: Translate): {
+  title: string
+  aria: string
+  slot: number | undefined
+  route: string | undefined
+} {
+  if (!state.enabled) {
+    return { title: t('chip.title.off'), aria: t('chip.aria.off'), slot: undefined, route: undefined }
+  }
+  if (state.queue.length === 0) {
+    return {
+      title: t('chip.empty'),
+      aria: t('chip.empty'),
+      slot: undefined,
+      route: t('chip.empty'),
+    }
+  }
+  const slot = clampIndex(state.currentIndex, state.queue.length) + 1
+  const current = state.queue[slot - 1]
+  if (current === undefined) {
+    return {
+      title: t('chip.empty'),
+      aria: t('chip.empty'),
+      slot: undefined,
+      route: t('chip.empty'),
+    }
+  }
+  const display = routeDisplay(current, state.candidates)
+  const params = { slot, provider: display.provider, model: display.model }
+  return {
+    title: t('chip.on', params),
+    aria: t('chip.aria.on', params),
+    slot,
+    route: `${display.provider}/${display.model}`,
+  }
+}
+
 /**
- * Composer chip: shows P1/P- and opens the drag panel.
+ * Composer chip: shows failover status and opens the drag panel.
  * @param props - composed slot props.
  */
 export function FailoverChip(props: FailoverChipProps): ReactNode {
@@ -35,11 +74,11 @@ export function FailoverChip(props: FailoverChipProps): ReactNode {
   const rootRef = useRef<HTMLDivElement | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
   const [pos, setPos] = useState<CSSProperties | null>(null)
+  const copy = chipCopy(state, t)
 
   useEffect(() => {
-    if (!open) return
     void loadCandidates(sessionId)
-  }, [open, loadCandidates, sessionId])
+  }, [loadCandidates, sessionId])
 
   useLayoutEffect(() => {
     if (!open) return
@@ -58,7 +97,7 @@ export function FailoverChip(props: FailoverChipProps): ReactNode {
     place()
     window.addEventListener('resize', place)
     return () => { window.removeEventListener('resize', place) }
-  }, [open, state.queue.length, state.enabled])
+  }, [open, state.queue.length, state.enabled, copy.route])
 
   useEffect(() => {
     if (!open) return
@@ -78,10 +117,6 @@ export function FailoverChip(props: FailoverChipProps): ReactNode {
     }
   }, [open])
 
-  const label = state.enabled && state.queue.length > 0
-    ? `P${clampIndex(state.currentIndex, state.queue.length) + 1}`
-    : t('chip.off')
-
   return (
     <div ref={rootRef}>
       <button
@@ -89,12 +124,20 @@ export function FailoverChip(props: FailoverChipProps): ReactNode {
         className={`${CLASS.chip}${state.enabled ? ` ${CLASS.chipOn}` : ''}`}
         aria-pressed={state.enabled}
         aria-expanded={open}
-        aria-label={state.enabled ? t('chip.aria.on') : t('chip.aria.off')}
-        title={state.enabled ? t('chip.title.on') : t('chip.title.off')}
+        aria-label={copy.aria}
+        title={copy.title}
         onMouseDown={(event) => { event.preventDefault() }}
         onClick={() => { setOpen(value => !value) }}
       >
-        {label}
+        <span className={CLASS.chipKicker}>{t('chip.kicker')}</span>
+        {copy.slot === undefined
+          ? <span className={CLASS.chipRoute}>{copy.route ?? t('chip.off')}</span>
+          : (
+            <>
+              <span className={CLASS.chipPriority}>P{copy.slot}</span>
+              <span className={CLASS.chipRoute}>{copy.route}</span>
+            </>
+          )}
       </button>
       {open && createPortal(
         <div ref={panelRef} style={{ ...pos, position: 'fixed', zIndex: 1100 }}>
