@@ -1,6 +1,6 @@
 /**
  * Browser half of dsh-failover-queue: a P1/P- chip on the composer tool row
- * and a Settings → Plugins tab. Clicks open the drag-reorder panel.
+ * and a Settings left-nav page. The chip still opens the drag-reorder popover.
  */
 import type { Context } from '@deepseek-ai/cordis'
 import { CANDIDATES_MARKER, type FailoverCandidate, type FailoverSettings } from '../types.ts'
@@ -41,7 +41,7 @@ interface FailoverClientContext {
   }
 }
 
-/** Required services for the composer chip and settings card. */
+/** Required services for the composer chip and settings page. */
 export const inject = ['slots', 'locale', 'settingsScope', 'remote', 'remote.commands']
 
 function settingsFromUnknown(value: unknown): FailoverSettings | undefined {
@@ -87,7 +87,7 @@ function candidatesFromText(text: string): FailoverCandidate[] {
 }
 
 /**
- * Register dictionaries, the composer chip, and the settings tab.
+ * Register dictionaries, the composer chip, and the Settings left-nav page.
  * @param ctx - browser plugin context.
  */
 export function apply(ctx: Context): void {
@@ -121,11 +121,14 @@ export function apply(ctx: Context): void {
     replaceCandidates(candidatesFromText(text))
   }
 
-  const injected = () => ({
+  const injected = (sessionId?: string) => ({
     hooks: { failover: failoverSource },
     api,
     loadCandidates,
-    getSessionId: () => client.sessions?.list.getSnapshot().current ?? '',
+    getSessionId: () => {
+      if (typeof sessionId === 'string' && sessionId !== '') return sessionId
+      return client.sessions?.list.getSnapshot().current ?? ''
+    },
   })
 
   client.effect(() => {
@@ -147,10 +150,10 @@ export function apply(ctx: Context): void {
     inject: injected,
   }, FailoverChip))
 
-  client.slots.inject('settings.plugins.tab', () => client.slots.register({
-    name: 'settings.plugins.tab',
+  client.slots.inject('settings.section', () => client.slots.register({
+    name: 'settings.section',
     id: 'failover',
-    order: 80,
+    order: 17,
     locale: NS,
     label: () => client.locale.bind(NS)('settings.tab'),
     inject: injected,

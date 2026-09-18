@@ -5,7 +5,10 @@ export const CLASS = {
   chipKicker: 'dsh-fq-chip-kicker',
   chipPriority: 'dsh-fq-chip-priority',
   chipRoute: 'dsh-fq-chip-route',
+  page: 'dsh-fq-page',
+  pageIntro: 'dsh-fq-page-intro',
   panel: 'dsh-fq-panel',
+  panelPage: 'dsh-fq-panel-page',
   head: 'dsh-fq-head',
   title: 'dsh-fq-title',
   switchRow: 'dsh-fq-switch-row',
@@ -84,6 +87,24 @@ export const STYLE = `
   color: var(--dsw-alias-label-primary, inherit);
   font-size: 13px;
   line-height: 18px;
+}
+.dsh-fq-page {
+  max-width: 560px;
+  padding: 4px 0 24px;
+}
+.dsh-fq-page-intro {
+  margin: 0 0 12px;
+  color: var(--dsw-alias-label-tertiary, #8e8e93);
+  font-size: 13px;
+  line-height: 18px;
+}
+.dsh-fq-page .dsh-fq-panel,
+.dsh-fq-panel.dsh-fq-panel-page {
+  position: static;
+  z-index: auto;
+  width: auto;
+  max-height: none;
+  box-shadow: none;
 }
 .dsh-fq-head {
   display: flex;

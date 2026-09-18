@@ -22,7 +22,7 @@ dsh plugin --profile web add github:LunFengChen/dsh-failover-queue
 dsh plugin --profile web add /path/to/dsh-failover-queue
 ```
 
-装完刷新 Web GUI。输入框右侧会出现 `P-`。
+装完刷新 Web GUI。输入框右侧会出现 `P-`。设置左侧导航有独立的 **故障转移** 页，里面是同一套队列编辑。
 
 ## 命名
 

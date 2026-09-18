@@ -23,6 +23,7 @@ export type FailoverKey =
   | 'panel.close'
   | 'panel.hint'
   | 'settings.tab'
+  | 'settings.intro'
 
 export const zh: Record<FailoverKey, string> = {
   'chip.kicker': '故障转移：',
@@ -45,6 +46,7 @@ export const zh: Record<FailoverKey, string> = {
   'panel.close': '关闭',
   'panel.hint': '拖动左侧手柄调整 P1/P2/P3。点一行设为当前。',
   'settings.tab': '故障转移',
+  'settings.intro': '编排 P1 / P2 / P3。开启后请求走队列当前档，不看会话里随手选的模型。',
 }
 
 export const en: Record<FailoverKey, string> = {
@@ -68,4 +70,5 @@ export const en: Record<FailoverKey, string> = {
   'panel.close': 'Close',
   'panel.hint': 'Drag the handle to change P1/P2/P3. Click a row to make it current.',
   'settings.tab': 'Failover',
+  'settings.intro': 'Arrange P1 / P2 / P3. While on, requests use the active queue slot, not the session picker.',
 }

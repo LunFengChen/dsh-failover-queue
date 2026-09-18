@@ -1,5 +1,5 @@
-# CC Switch-style P1/P2/P3 failover queue. Composer chip + drag panel.
-# Disable from Settings → Plugins or `/failover off`.
+# CC Switch-style P1/P2/P3 failover queue. Composer chip + Settings page.
+# Disable from Settings → xfdsh preset plugins or `/failover off`.
 - insert:
     - id: dsh-failover-queue
       name: '@x1a0f3n9/dsh-failover-queue'

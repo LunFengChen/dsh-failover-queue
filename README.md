@@ -24,7 +24,7 @@ Local checkout:
 dsh plugin --profile web add /path/to/dsh-failover-queue
 ```
 
-Reload the Web GUI. The composer shows `P-`.
+Reload the Web GUI. The composer shows `P-`. Settings left nav has a **Failover** page with the same queue editor.
 
 ## Names
 

@@ -150,7 +150,7 @@ export function FailoverChip(props: FailoverChipProps): ReactNode {
 }
 
 /**
- * Settings tab: the same queue without the composer chip.
+ * Settings left-nav page: the same queue editor, in document flow.
  * @param props - composed slot props.
  */
 export function FailoverSettingsCard(props: FailoverChipProps): ReactNode {
@@ -160,5 +160,10 @@ export function FailoverSettingsCard(props: FailoverChipProps): ReactNode {
   useEffect(() => {
     void loadCandidates(sessionId)
   }, [loadCandidates, sessionId])
-  return <QueuePanel state={state} api={api} t={t} />
+  return (
+    <div className={CLASS.page}>
+      <p className={CLASS.pageIntro}>{t('settings.intro')}</p>
+      <QueuePanel state={state} api={api} t={t} embedded />
+    </div>
+  )
 }

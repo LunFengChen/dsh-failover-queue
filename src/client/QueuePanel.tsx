@@ -15,13 +15,15 @@ export interface QueuePanelProps {
   readonly api: QueuePanelApi
   readonly t: (key: FailoverKey, params?: Record<string, string | number>) => string
   readonly onClose?: () => void
+  /** In-flow settings page; skip the composer popover's fixed positioning. */
+  readonly embedded?: boolean
 }
 
 /**
  * Drag-reorder P1/P2/P3 list plus the auto-failover switch.
  * @param props - live snapshot, settings writes, locale.
  */
-export function QueuePanel({ state, api, t, onClose }: QueuePanelProps): ReactNode {
+export function QueuePanel({ state, api, t, onClose, embedded = false }: QueuePanelProps): ReactNode {
   const [pending, setPending] = useState(false)
   const [pick, setPick] = useState('')
   const available = useMemo(() => {
@@ -62,7 +64,11 @@ export function QueuePanel({ state, api, t, onClose }: QueuePanelProps): ReactNo
   }
 
   return (
-    <div className={CLASS.panel} role="dialog" aria-label={t('panel.title')}>
+    <div
+      className={embedded ? `${CLASS.panel} ${CLASS.panelPage}` : CLASS.panel}
+      role={embedded ? 'region' : 'dialog'}
+      aria-label={t('panel.title')}
+    >
       <div className={CLASS.head}>
         <div className={CLASS.title}>{t('panel.title')}</div>
         {onClose === undefined ? null : (
