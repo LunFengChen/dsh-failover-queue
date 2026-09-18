@@ -20,7 +20,7 @@ const productionPatterns = [...productionDeps].map(name => new RegExp(`^${escape
 const isProductionDependency = (specifier: string): boolean =>
   productionPatterns.some(pattern => pattern.test(specifier))
 
-const clientExternals = new Set([
+const clientExternals = [
   'react',
   'react/jsx-runtime',
   'react-dom',
@@ -30,7 +30,7 @@ const clientExternals = new Set([
   '@x1a0f3n9/dsh-client-ui-slots',
   '@x1a0f3n9/dsh-client-ui-primitives',
   '@x1a0f3n9/dsh-client-ui-dockkit',
-])
+] as const
 
 const host: UserConfig = {
   name: pkg.name,
@@ -60,9 +60,10 @@ const client: UserConfig = {
   clean: false,
   tsconfig: 'tsconfig.json',
   external: [...clientExternals],
-  deps: {
-    neverBundle: (specifier: string) => clientExternals.has(specifier) || specifier === 'react' || specifier.startsWith('react/'),
-    alwaysBundle: (specifier: string) => specifier.startsWith('.') || specifier.startsWith('\0'),
+  noExternal: [/^@deepseek-ai\/schemastery($|\/)/],
+  define: {
+    'process.env': '{}',
+    'process.env.NODE_ENV': JSON.stringify('production'),
   },
   outputOptions: {
     entryFileNames: 'client.js',
