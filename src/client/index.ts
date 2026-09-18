@@ -27,9 +27,6 @@ interface FailoverClientContext {
       subscribe: (cb: () => void) => () => void
     }
   }
-  sessions?: {
-    list: { getSnapshot: () => { current?: string } }
-  }
   remote: {
     commands: {
       execute: (sessionId: string, line: string, attachments: unknown[]) => Promise<{
@@ -43,6 +40,19 @@ interface FailoverClientContext {
 
 /** Required services for the composer chip and settings page. */
 export const inject = ['slots', 'locale', 'settingsScope', 'remote', 'remote.commands']
+
+
+interface SessionList {
+  list?: { getSnapshot: () => { current?: string } }
+}
+
+function currentSessionId(ctx: Context, sessionId?: string): string {
+  if (typeof sessionId === 'string' && sessionId !== '') return sessionId
+  // Property access throws without inject; get() is the optional read.
+  const sessions = ctx.get('sessions') as SessionList | undefined
+  const current = sessions?.list?.getSnapshot?.().current
+  return typeof current === 'string' ? current : ''
+}
 
 function settingsFromUnknown(value: unknown): FailoverSettings | undefined {
   if (typeof value !== 'object' || value === null) return undefined
@@ -125,10 +135,7 @@ export function apply(ctx: Context): void {
     hooks: { failover: failoverSource },
     api,
     loadCandidates,
-    getSessionId: () => {
-      if (typeof sessionId === 'string' && sessionId !== '') return sessionId
-      return client.sessions?.list.getSnapshot().current ?? ''
-    },
+    getSessionId: () => currentSessionId(ctx, sessionId),
   })
 
   client.effect(() => {

@@ -10,7 +10,8 @@ type Translate = (key: FailoverKey, params?: Record<string, string | number>) =>
 
 /** Registration-side face plus the renderer-bound snapshot hook. */
 export interface FailoverChipInjected {
-  useFailover: () => FailoverSnapshot
+  /** Slot renderer binds `hooks.failover` as a selector hook, not a zero-arg reader. */
+  useFailover: <S>(selector: (snapshot: FailoverSnapshot) => S) => S
   api: QueuePanelApi
   loadCandidates: (sessionId: string) => Promise<void>
   getSessionId?: () => string
@@ -68,7 +69,7 @@ function chipCopy(state: FailoverSnapshot, t: Translate): {
  */
 export function FailoverChip(props: FailoverChipProps): ReactNode {
   const { useFailover, api, loadCandidates, t } = props
-  const state = useFailover()
+  const state = useFailover(snapshot => snapshot)
   const sessionId = sessionOf(props)
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement | null>(null)
@@ -155,7 +156,7 @@ export function FailoverChip(props: FailoverChipProps): ReactNode {
  */
 export function FailoverSettingsCard(props: FailoverChipProps): ReactNode {
   const { useFailover, api, loadCandidates, t } = props
-  const state = useFailover()
+  const state = useFailover(snapshot => snapshot)
   const sessionId = sessionOf(props)
   useEffect(() => {
     void loadCandidates(sessionId)
