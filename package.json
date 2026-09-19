@@ -1,6 +1,6 @@
 {
   "name": "@x1a0f3n9/dsh-failover-queue",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "CC Switch-style P1/P2/P3 model failover for DeepSeek Harness. Composer toggle, drag-reorder, same-step retry chain.",
   "author": "LunFengChen",
   "license": "MIT",

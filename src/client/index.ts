@@ -3,7 +3,8 @@
  * and a Settings left-nav page. The chip still opens the drag-reorder popover.
  */
 import type { Context } from '@deepseek-ai/cordis'
-import { CANDIDATES_MARKER, type FailoverCandidate, type FailoverSettings } from '../types.ts'
+import { candidatesFromCatalog, candidatesFromText } from '../candidates.ts'
+import type { FailoverSettings } from '../types.ts'
 import { FailoverChip, FailoverSettingsCard } from './FailoverChip.tsx'
 import { en, NS, zh, type FailoverKey } from './locales.ts'
 import { failoverSource, replaceCandidates, replaceSettings } from './state.ts'
@@ -35,11 +36,18 @@ interface FailoverClientContext {
         error?: { message: string; code: string }
       }>
     }
+    session?: {
+      modelCatalog: () => Promise<{
+        ok: boolean
+        value?: unknown
+        error?: { message: string }
+      }>
+    }
   }
 }
 
 /** Required services for the composer chip and settings page. */
-export const inject = ['slots', 'locale', 'settingsScope', 'remote', 'remote.commands']
+export const inject = ['slots', 'locale', 'settingsScope', 'remote', 'remote.commands', 'remote.session']
 
 
 interface SessionList {
@@ -73,29 +81,6 @@ function settingsFromUnknown(value: unknown): FailoverSettings | undefined {
   return { enabled: record.enabled, currentIndex: record.currentIndex, queue }
 }
 
-function candidatesFromText(text: string): FailoverCandidate[] {
-  const marker = text.indexOf(CANDIDATES_MARKER)
-  if (marker < 0) return []
-  const json = text.slice(marker + CANDIDATES_MARKER.length).trim()
-  try {
-    const parsed: unknown = JSON.parse(json)
-    if (!Array.isArray(parsed)) return []
-    return parsed.flatMap((row) => {
-      if (typeof row !== 'object' || row === null) return []
-      const item = row as Record<string, unknown>
-      if (typeof item.provider !== 'string' || typeof item.model !== 'string') return []
-      return [{
-        provider: item.provider,
-        providerName: typeof item.providerName === 'string' ? item.providerName : item.provider,
-        model: item.model,
-        name: typeof item.name === 'string' ? item.name : item.model,
-      }]
-    })
-  } catch {
-    return []
-  }
-}
-
 /**
  * Register dictionaries, the composer chip, and the Settings left-nav page.
  * @param ctx - browser plugin context.
@@ -121,6 +106,14 @@ export function apply(ctx: Context): void {
   }
 
   const loadCandidates = async (sessionId: string): Promise<void> => {
+    const catalog = await client.remote.session?.modelCatalog()
+    if (catalog?.ok) {
+      const rows = candidatesFromCatalog(catalog.value)
+      if (rows.length > 0) {
+        replaceCandidates(rows)
+        return
+      }
+    }
     if (sessionId === '') return
     const result = await client.remote.commands.execute(sessionId, '/failover __candidates', [])
     if (!result.ok) return
