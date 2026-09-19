@@ -119,7 +119,7 @@ export function QueuePanel({ state, api, t, onClose, embedded = false }: QueuePa
         width,
         top,
         maxHeight,
-        zIndex: 2000,
+        zIndex: 2100,
       })
     }
     place()

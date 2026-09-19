@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import { createPortal } from 'react-dom'
 import { clampIndex, routeDisplay } from '../queue.ts'
 import type { FailoverKey } from './locales.ts'
+import { placeComposerPanel } from './place.ts'
 import { QueuePanel, type QueuePanelApi } from './QueuePanel.tsx'
 import { CLASS } from './styles.ts'
 import type { FailoverSnapshot } from './state.ts'
@@ -88,23 +89,39 @@ export function FailoverChip(props: FailoverChipProps): ReactNode {
       const panel = panelRef.current
       if (trigger === null || panel === null) return
       const rect = trigger.getBoundingClientRect()
-      const width = panel.offsetWidth
-      const height = panel.offsetHeight
-      const left = Math.min(Math.max(8, rect.right - width), window.innerWidth - width - 8)
-      const above = rect.top - 8 - height
-      const top = above >= 8 ? above : Math.min(rect.bottom + 8, window.innerHeight - height - 8)
-      setPos({ left, top })
+      const placed = placeComposerPanel({
+        trigger: rect,
+        width: panel.offsetWidth,
+        height: panel.offsetHeight,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+      })
+      setPos({
+        left: placed.left,
+        top: placed.top,
+        maxHeight: placed.maxHeight,
+      })
     }
     place()
+    const observer = new ResizeObserver(place)
+    if (panelRef.current !== null) observer.observe(panelRef.current)
     window.addEventListener('resize', place)
-    return () => { window.removeEventListener('resize', place) }
+    window.addEventListener('scroll', place, true)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
   }, [open, state.queue.length, state.enabled, copy.route])
 
   useEffect(() => {
     if (!open) return
     const close = (event: MouseEvent): void => {
-      if (rootRef.current?.contains(event.target as Node) === true) return
-      if (panelRef.current?.contains(event.target as Node) === true) return
+      const target = event.target
+      if (!(target instanceof Node)) return
+      if (rootRef.current?.contains(target) === true) return
+      if (panelRef.current?.contains(target) === true) return
+      if (target instanceof Element && target.closest('.dsh-fq-menu') !== null) return
       setOpen(false)
     }
     const onKey = (event: KeyboardEvent): void => {
@@ -141,7 +158,7 @@ export function FailoverChip(props: FailoverChipProps): ReactNode {
           )}
       </button>
       {open && createPortal(
-        <div ref={panelRef} style={{ ...pos, position: 'fixed', zIndex: 1100 }}>
+        <div ref={panelRef} style={{ ...pos, position: 'fixed', zIndex: 2000, overflow: 'auto' }}>
           <QueuePanel state={state} api={api} t={t} onClose={() => { setOpen(false) }} />
         </div>,
         document.body,

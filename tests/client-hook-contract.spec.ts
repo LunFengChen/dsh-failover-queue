@@ -24,6 +24,14 @@ describe('client slot hook contract', () => {
     expect(panel).toContain('groupCandidatesByProvider')
   })
 
+  it('keeps the composer popover inside the viewport', () => {
+    expect(chip).toContain('placeComposerPanel')
+    expect(chip).toContain("addEventListener('scroll', place, true)")
+    expect(chip).toContain('zIndex: 2000')
+    expect(chip).toContain("overflow: 'auto'")
+    expect(chip).toContain("closest('.dsh-fq-menu')")
+  })
+
   it('ships the same contracts in the browser bundle', () => {
     const built = readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8')
     expect(built).toContain('useFailover((snapshot')
