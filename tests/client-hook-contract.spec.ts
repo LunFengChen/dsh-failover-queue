@@ -20,5 +20,6 @@ describe('client slot hook contract', () => {
     expect(built).toContain('useFailover((snapshot')
     expect(built).not.toMatch(/client\.sessions/)
     expect(built).toContain('get("sessions")')
+    expect(built).toContain('modelCatalog')
   })
 })
