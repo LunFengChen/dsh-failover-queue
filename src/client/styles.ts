@@ -29,6 +29,9 @@ export const CLASS = {
   search: 'dsh-fq-search',
   catalog: 'dsh-fq-catalog',
   catalogItem: 'dsh-fq-catalog-item',
+  catalogProvider: 'dsh-fq-catalog-provider',
+  chevron: 'dsh-fq-chevron',
+  back: 'dsh-fq-back',
   empty: 'dsh-fq-empty',
   toggle: 'dsh-fq-toggle',
   toggleOn: 'dsh-fq-toggle-on',
@@ -292,6 +295,35 @@ export const STYLE = `
 .dsh-fq-catalog-item:disabled {
   cursor: default;
   opacity: 0.6;
+}
+
+.dsh-fq-catalog-provider {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.dsh-fq-chevron {
+  flex-shrink: 0;
+  color: var(--dsw-alias-label-tertiary, #8e8e93);
+  font-size: 16px;
+  line-height: 1;
+}
+.dsh-fq-back {
+  flex-shrink: 0;
+  align-self: flex-start;
+  height: 24px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary, #d1d1d6);
+  font-size: 12px;
+  cursor: pointer;
+}
+.dsh-fq-back:hover {
+  background: var(--dsw-alias-interactive-bg-hover, rgba(255,255,255,0.08));
+  color: var(--dsw-alias-label-primary, #f5f5f7);
 }
 .dsh-fq-toggle {
   position: relative;
