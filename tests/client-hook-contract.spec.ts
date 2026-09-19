@@ -24,6 +24,12 @@ describe('client slot hook contract', () => {
     expect(panel).toContain('groupCandidatesByProvider')
   })
 
+  it('shows a circuit-health dot on each queue row', () => {
+    expect(panel).toContain('CLASS.health')
+    expect(panel).toContain('circuitTone')
+    expect(panel).toContain('panel.health.ok')
+  })
+
   it('keeps the composer popover inside the viewport', () => {
     expect(chip).toContain('placeComposerPanel')
     expect(chip).toContain("addEventListener('scroll', place, true)")

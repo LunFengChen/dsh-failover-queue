@@ -8,14 +8,27 @@ export interface QueueRoute {
   readonly label?: string
 }
 
+/** Closed = healthy, Open = skipped, HalfOpen = one probe. */
+export type CircuitState = 'closed' | 'open' | 'half_open'
+
+/** Host-projected breaker badge for one queue route. Memory-only on the host. */
+export interface CircuitHealth {
+  readonly provider: string
+  readonly model: string
+  readonly state: CircuitState
+  readonly failures: number
+}
+
 /** Persisted failover document (settings namespace `dsh-failover-queue`). */
 export interface FailoverSettings {
   /** When false, the plugin never overlays or retries across routes. */
   enabled: boolean
-  /** Active queue index (P1 = 0). Clamped on read. */
+  /** Last picked queue index (P1 = 0). Clamped on read. Not a sticky pointer. */
   currentIndex: number
   /** Ordered routes. Index 0 is P1. */
   queue: QueueRoute[]
+  /** Live circuit badges. Host memory is the source of truth. */
+  circuits?: CircuitHealth[]
 }
 
 /** One advertised catalog row the panel can add. */

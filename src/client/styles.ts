@@ -18,6 +18,10 @@ export const CLASS = {
   row: 'dsh-fq-row',
   rowActive: 'dsh-fq-row-active',
   handle: 'dsh-fq-handle',
+  health: 'dsh-fq-health',
+  healthOk: 'dsh-fq-health-ok',
+  healthProbe: 'dsh-fq-health-probe',
+  healthOpen: 'dsh-fq-health-open',
   badge: 'dsh-fq-badge',
   meta: 'dsh-fq-meta',
   name: 'dsh-fq-name',
@@ -157,7 +161,7 @@ export const STYLE = `
 }
 .dsh-fq-row {
   display: grid;
-  grid-template-columns: 16px 32px minmax(0, 1fr) 28px;
+  grid-template-columns: 16px 8px 32px minmax(0, 1fr) 28px;
   align-items: center;
   gap: 6px;
   padding: 6px 8px;
@@ -181,6 +185,15 @@ export const STYLE = `
   cursor: grab;
 }
 .dsh-fq-handle:active { cursor: grabbing; }
+.dsh-fq-health {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  justify-self: center;
+}
+.dsh-fq-health-ok { background: #34d399; }
+.dsh-fq-health-probe { background: #fbbf24; }
+.dsh-fq-health-open { background: #f87171; }
 .dsh-fq-badge {
   font-size: 11px;
   font-weight: 700;
