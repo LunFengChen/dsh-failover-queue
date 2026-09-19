@@ -81,11 +81,11 @@ export const STYLE = `
   white-space: nowrap;
 }
 .dsh-fq-panel {
-  position: fixed;
-  z-index: 1100;
+  position: relative;
+  z-index: auto;
   width: 320px;
-  max-height: min(420px, calc(100vh - 24px));
-  overflow: visible;
+  max-height: min(420px, calc(100vh - 16px));
+  overflow: auto;
   padding: 12px;
   border: 1px solid var(--dsw-alias-border-l2, rgba(255,255,255,0.12));
   border-radius: 12px;
