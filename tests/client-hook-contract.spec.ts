@@ -20,6 +20,8 @@ describe('client slot hook contract', () => {
     expect(panel).not.toContain('<select')
     expect(panel).toContain('createPortal')
     expect(panel).toContain('CLASS.menu')
+    expect(panel).toContain('selectedProvider')
+    expect(panel).toContain('groupCandidatesByProvider')
   })
 
   it('ships the same contracts in the browser bundle', () => {

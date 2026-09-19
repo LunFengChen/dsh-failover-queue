@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { groupCandidatesByProvider } from '../candidates.ts'
 import { clampIndex, indexAfterReorder, reorderQueue, routeDisplay, routeKey } from '../queue.ts'
 import type { FailoverCandidate } from '../types.ts'
 import type { FailoverKey } from './locales.ts'
@@ -35,6 +36,7 @@ export function QueuePanel({ state, api, t, onClose, embedded = false }: QueuePa
   const [pending, setPending] = useState(false)
   const [query, setQuery] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
+  const [selectedProvider, setSelectedProvider] = useState<string | null>(null)
   const pickerRef = useRef<HTMLDivElement | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
   const [menuPos, setMenuPos] = useState<CSSProperties | null>(null)
@@ -45,10 +47,30 @@ export function QueuePanel({ state, api, t, onClose, embedded = false }: QueuePa
       model: row.model,
     })))
   }, [state.candidates, state.queue])
-  const filtered = useMemo(
-    () => available.filter(row => candidateMatches(row, query)),
-    [available, query],
-  )
+  const groups = useMemo(() => groupCandidatesByProvider(available), [available])
+  const needle = query.trim().toLowerCase()
+  const visibleGroups = useMemo(() => {
+    if (needle === '') return groups
+    return groups.filter(group => (
+      group.provider.toLowerCase().includes(needle)
+      || group.providerName.toLowerCase().includes(needle)
+      || group.models.some(row => candidateMatches(row, query))
+    ))
+  }, [groups, needle, query])
+  const selectedGroup = selectedProvider === null
+    ? undefined
+    : groups.find(group => group.provider === selectedProvider)
+  const visibleModels = useMemo(() => {
+    if (selectedGroup === undefined) return []
+    if (needle === '') return [...selectedGroup.models]
+    return selectedGroup.models.filter(row => candidateMatches(row, query))
+  }, [selectedGroup, needle, query])
+
+  const closeMenu = (): void => {
+    setMenuOpen(false)
+    setSelectedProvider(null)
+    setQuery('')
+  }
 
   useEffect(() => {
     if (!menuOpen) return
@@ -56,10 +78,15 @@ export function QueuePanel({ state, api, t, onClose, embedded = false }: QueuePa
       const target = event.target as Node
       if (pickerRef.current?.contains(target) === true) return
       if (menuRef.current?.contains(target) === true) return
-      setMenuOpen(false)
+      closeMenu()
     }
     const onKey = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') setMenuOpen(false)
+      if (event.key !== 'Escape') return
+      if (selectedProvider !== null) {
+        setSelectedProvider(null)
+        return
+      }
+      closeMenu()
     }
     document.addEventListener('mousedown', onDoc)
     document.addEventListener('keydown', onKey)
@@ -67,7 +94,7 @@ export function QueuePanel({ state, api, t, onClose, embedded = false }: QueuePa
       document.removeEventListener('mousedown', onDoc)
       document.removeEventListener('keydown', onKey)
     }
-  }, [menuOpen])
+  }, [menuOpen, selectedProvider])
 
   useLayoutEffect(() => {
     if (!menuOpen) {
@@ -102,7 +129,7 @@ export function QueuePanel({ state, api, t, onClose, embedded = false }: QueuePa
       window.removeEventListener('resize', place)
       window.removeEventListener('scroll', place, true)
     }
-  }, [menuOpen, filtered.length, query])
+  }, [menuOpen, selectedProvider, visibleGroups.length, visibleModels.length, query])
 
   const run = (work: () => Promise<void>): void => {
     if (pending) return
@@ -125,16 +152,19 @@ export function QueuePanel({ state, api, t, onClose, embedded = false }: QueuePa
       model: row.model,
       label: row.name,
     }
-    setMenuOpen(false)
-    setQuery('')
+    closeMenu()
     run(() => api.setQueue([...state.queue, route], state.currentIndex))
   }
 
   const pickerLabel = !state.candidatesLoaded
     ? t('panel.add.loading')
-    : available.length === 0
+    : groups.length === 0
       ? t('panel.add.none')
-      : t('panel.add.placeholderCount', { count: available.length })
+      : t('panel.add.placeholderCount', { count: groups.length })
+
+  const emptyMenu = selectedProvider === null
+    ? visibleGroups.length === 0
+    : visibleModels.length === 0
 
   return (
     <div
@@ -232,42 +262,77 @@ export function QueuePanel({ state, api, t, onClose, embedded = false }: QueuePa
         <button
           type="button"
           className={CLASS.pickerBtn}
-          disabled={pending || !state.candidatesLoaded || available.length === 0}
+          disabled={pending || !state.candidatesLoaded || groups.length === 0}
           aria-expanded={menuOpen}
           aria-haspopup="listbox"
           aria-label={t('panel.add')}
-          onClick={() => { setMenuOpen(open => !open) }}
+          onClick={() => {
+            if (menuOpen) {
+              closeMenu()
+              return
+            }
+            setMenuOpen(true)
+          }}
         >
           {pickerLabel}
         </button>
-        {menuOpen && state.candidatesLoaded && available.length > 0 && menuPos !== null
+        {menuOpen && state.candidatesLoaded && groups.length > 0 && menuPos !== null
           ? createPortal(
             <div className={CLASS.menu} ref={menuRef} style={menuPos}>
+              {selectedProvider === null ? null : (
+                <button
+                  type="button"
+                  className={CLASS.back}
+                  onClick={() => { setSelectedProvider(null) }}
+                >
+                  ← {t('panel.add.back')}
+                </button>
+              )}
               <input
                 className={CLASS.search}
                 value={query}
                 autoFocus
                 disabled={pending}
-                placeholder={t('panel.add.search')}
-                aria-label={t('panel.add.search')}
+                placeholder={selectedProvider === null ? t('panel.add.searchProvider') : t('panel.add.searchModel')}
+                aria-label={selectedProvider === null ? t('panel.add.searchProvider') : t('panel.add.searchModel')}
                 onChange={(event) => { setQuery(event.target.value) }}
               />
-              {filtered.length === 0 ? (
+              {emptyMenu ? (
                 <p className={CLASS.empty}>{t('panel.add.nomatch')}</p>
-              ) : (
+              ) : selectedProvider === null ? (
                 <ul className={CLASS.catalog} role="listbox" aria-label={t('panel.add')}>
-                  {filtered.map((row) => (
+                  {visibleGroups.map((group) => (
+                    <li key={group.provider}>
+                      <button
+                        type="button"
+                        className={`${CLASS.catalogItem} ${CLASS.catalogProvider}`}
+                        disabled={pending}
+                        aria-label={`${group.providerName}, ${t('panel.add.modelCount', { count: group.models.length })}`}
+                        onClick={() => { setSelectedProvider(group.provider) }}
+                      >
+                        <span className={CLASS.meta}>
+                          <span className={CLASS.name}>{group.providerName}</span>
+                          <span className={CLASS.sub}>{group.provider} · {t('panel.add.modelCount', { count: group.models.length })}</span>
+                        </span>
+                        <span className={CLASS.chevron} aria-hidden="true">›</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <ul className={CLASS.catalog} role="listbox" aria-label={selectedGroup?.providerName ?? t('panel.add')}>
+                  {visibleModels.map((row) => (
                     <li key={routeKey({ provider: row.provider, model: row.model })}>
                       <button
                         type="button"
                         className={CLASS.catalogItem}
                         role="option"
                         disabled={pending}
-                        aria-label={`${t('panel.add')}: ${row.providerName} / ${row.name}`}
+                        aria-label={`${t('panel.add')}: ${row.name}`}
                         onClick={() => { addCandidate(row) }}
                       >
-                        <span className={CLASS.name}>{row.providerName} / {row.name}</span>
-                        <span className={CLASS.sub}>{row.provider} / {row.model}</span>
+                        <span className={CLASS.name}>{row.name}</span>
+                        <span className={CLASS.sub}>{row.model}</span>
                       </button>
                     </li>
                   ))}

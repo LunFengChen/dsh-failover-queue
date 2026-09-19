@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { candidatesFromCatalog, candidatesFromText } from '../src/candidates.ts'
+import { candidatesFromCatalog, candidatesFromText, groupCandidatesByProvider } from '../src/candidates.ts'
 import { CANDIDATES_MARKER } from '../src/types.ts'
 
 describe('candidatesFromCatalog', () => {
@@ -43,6 +43,30 @@ describe('candidatesFromText', () => {
   it('reads the command marker payload', () => {
     expect(candidatesFromText(`${CANDIDATES_MARKER}\n[{"provider":"a","model":"b","name":"B","providerName":"A"}]`)).toEqual([
       { provider: 'a', providerName: 'A', model: 'b', name: 'B' },
+    ])
+  })
+})
+
+describe('groupCandidatesByProvider', () => {
+  it('keeps first-seen provider order and stacks models', () => {
+    expect(groupCandidatesByProvider([
+      { provider: 'a', providerName: 'A', model: 'm1', name: 'M1' },
+      { provider: 'b', providerName: 'B', model: 'm2', name: 'M2' },
+      { provider: 'a', providerName: 'A', model: 'm3', name: 'M3' },
+    ])).toEqual([
+      {
+        provider: 'a',
+        providerName: 'A',
+        models: [
+          { provider: 'a', providerName: 'A', model: 'm1', name: 'M1' },
+          { provider: 'a', providerName: 'A', model: 'm3', name: 'M3' },
+        ],
+      },
+      {
+        provider: 'b',
+        providerName: 'B',
+        models: [{ provider: 'b', providerName: 'B', model: 'm2', name: 'M2' }],
+      },
     ])
   })
 })

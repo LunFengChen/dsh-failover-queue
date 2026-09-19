@@ -17,7 +17,10 @@ export type FailoverKey =
   | 'panel.empty'
   | 'panel.add'
   | 'panel.add.placeholderCount'
-  | 'panel.add.search'
+  | 'panel.add.searchProvider'
+  | 'panel.add.searchModel'
+  | 'panel.add.back'
+  | 'panel.add.modelCount'
   | 'panel.add.loading'
   | 'panel.add.none'
   | 'panel.add.nomatch'
@@ -43,8 +46,11 @@ export const zh: Record<FailoverKey, string> = {
   'panel.switch.off': '只用当前会话模型，不跨路由',
   'panel.empty': '队列是空的。从下面点一条路由，P1 就是主供应商。',
   'panel.add': '加入队列',
-  'panel.add.placeholderCount': '选择一条路由（{count}）',
-  'panel.add.search': '搜索供应商或模型…',
+  'panel.add.placeholderCount': '选择供应商（{count}）',
+  'panel.add.searchProvider': '搜索供应商…',
+  'panel.add.searchModel': '搜索模型…',
+  'panel.add.back': '返回供应商',
+  'panel.add.modelCount': '{count} 个模型',
   'panel.add.loading': '正在读取已配置的模型…',
   'panel.add.none': '没有可加的路由。先在「模型」里配供应商。',
   'panel.add.nomatch': '没有匹配的路由。',
@@ -71,8 +77,11 @@ export const en: Record<FailoverKey, string> = {
   'panel.switch.off': 'Use the session model only',
   'panel.empty': 'Queue is empty. Click a route below. P1 is the primary.',
   'panel.add': 'Add to queue',
-  'panel.add.placeholderCount': 'Pick a route ({count})',
-  'panel.add.search': 'Search provider or model…',
+  'panel.add.placeholderCount': 'Pick a provider ({count})',
+  'panel.add.searchProvider': 'Search providers…',
+  'panel.add.searchModel': 'Search models…',
+  'panel.add.back': 'Back to providers',
+  'panel.add.modelCount': '{count} models',
   'panel.add.loading': 'Loading configured models…',
   'panel.add.none': 'No routes to add. Configure a provider under Models first.',
   'panel.add.nomatch': 'No matching routes.',
