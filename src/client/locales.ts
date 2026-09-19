@@ -16,7 +16,11 @@ export type FailoverKey =
   | 'panel.switch.off'
   | 'panel.empty'
   | 'panel.add'
-  | 'panel.add.placeholder'
+  | 'panel.add.placeholderCount'
+  | 'panel.add.search'
+  | 'panel.add.loading'
+  | 'panel.add.none'
+  | 'panel.add.nomatch'
   | 'panel.remove'
   | 'panel.drag'
   | 'panel.current'
@@ -37,9 +41,13 @@ export const zh: Record<FailoverKey, string> = {
   'panel.switch': '自动故障转移',
   'panel.switch.on': '失败按 P1 → P2 → P3 切换',
   'panel.switch.off': '只用当前会话模型，不跨路由',
-  'panel.empty': '队列是空的。从下面加一条路由，P1 就是主供应商。',
+  'panel.empty': '队列是空的。从下面点一条路由，P1 就是主供应商。',
   'panel.add': '加入队列',
-  'panel.add.placeholder': '选择一条路由…',
+  'panel.add.placeholderCount': '选择一条路由（{count}）',
+  'panel.add.search': '搜索供应商或模型…',
+  'panel.add.loading': '正在读取已配置的模型…',
+  'panel.add.none': '没有可加的路由。先在「模型」里配供应商。',
+  'panel.add.nomatch': '没有匹配的路由。',
   'panel.remove': '移除',
   'panel.drag': '拖动改优先级',
   'panel.current': '当前',
@@ -61,9 +69,13 @@ export const en: Record<FailoverKey, string> = {
   'panel.switch': 'Auto failover',
   'panel.switch.on': 'On failure, switch P1 → P2 → P3',
   'panel.switch.off': 'Use the session model only',
-  'panel.empty': 'Queue is empty. Add a route below. P1 is the primary.',
+  'panel.empty': 'Queue is empty. Click a route below. P1 is the primary.',
   'panel.add': 'Add to queue',
-  'panel.add.placeholder': 'Pick a route…',
+  'panel.add.placeholderCount': 'Pick a route ({count})',
+  'panel.add.search': 'Search provider or model…',
+  'panel.add.loading': 'Loading configured models…',
+  'panel.add.none': 'No routes to add. Configure a provider under Models first.',
+  'panel.add.nomatch': 'No matching routes.',
   'panel.remove': 'Remove',
   'panel.drag': 'Drag to reorder',
   'panel.current': 'current',

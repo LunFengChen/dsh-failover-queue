@@ -1,8 +1,10 @@
-import { useMemo, useState, type DragEvent, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { clampIndex, indexAfterReorder, reorderQueue, routeDisplay, routeKey } from '../queue.ts'
+import type { FailoverCandidate } from '../types.ts'
 import type { FailoverKey } from './locales.ts'
 import { CLASS } from './styles.ts'
-import type { FailoverCandidate, FailoverSnapshot, QueueRoute } from './state.ts'
+import type { FailoverSnapshot, QueueRoute } from './state.ts'
 
 /** Writes the panel issues against the host settings document. */
 export interface QueuePanelApi {
@@ -19,13 +21,23 @@ export interface QueuePanelProps {
   readonly embedded?: boolean
 }
 
+function candidateMatches(row: FailoverCandidate, query: string): boolean {
+  const needle = query.trim().toLowerCase()
+  if (needle === '') return true
+  return [row.provider, row.providerName, row.model, row.name].some(part => part.toLowerCase().includes(needle))
+}
+
 /**
  * Drag-reorder P1/P2/P3 list plus the auto-failover switch.
  * @param props - live snapshot, settings writes, locale.
  */
 export function QueuePanel({ state, api, t, onClose, embedded = false }: QueuePanelProps): ReactNode {
   const [pending, setPending] = useState(false)
-  const [pick, setPick] = useState('')
+  const [query, setQuery] = useState('')
+  const [menuOpen, setMenuOpen] = useState(false)
+  const pickerRef = useRef<HTMLDivElement | null>(null)
+  const menuRef = useRef<HTMLDivElement | null>(null)
+  const [menuPos, setMenuPos] = useState<CSSProperties | null>(null)
   const available = useMemo(() => {
     const taken = new Set(state.queue.map(routeKey))
     return state.candidates.filter(row => !taken.has(routeKey({
@@ -33,6 +45,64 @@ export function QueuePanel({ state, api, t, onClose, embedded = false }: QueuePa
       model: row.model,
     })))
   }, [state.candidates, state.queue])
+  const filtered = useMemo(
+    () => available.filter(row => candidateMatches(row, query)),
+    [available, query],
+  )
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const onDoc = (event: MouseEvent): void => {
+      const target = event.target as Node
+      if (pickerRef.current?.contains(target) === true) return
+      if (menuRef.current?.contains(target) === true) return
+      setMenuOpen(false)
+    }
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDoc)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [menuOpen])
+
+  useLayoutEffect(() => {
+    if (!menuOpen) {
+      setMenuPos(null)
+      return
+    }
+    const place = (): void => {
+      const trigger = pickerRef.current
+      if (trigger === null) return
+      const rect = trigger.getBoundingClientRect()
+      const width = Math.max(rect.width, 280)
+      const maxHeight = Math.min(320, Math.floor(window.innerHeight * 0.5))
+      const roomAbove = rect.top - 8
+      const roomBelow = window.innerHeight - rect.bottom - 8
+      const openUp = roomAbove >= 160 || roomAbove >= roomBelow
+      const top = openUp
+        ? Math.max(8, rect.top - 6 - maxHeight)
+        : Math.min(rect.bottom + 6, window.innerHeight - maxHeight - 8)
+      setMenuPos({
+        position: 'fixed',
+        left: Math.min(rect.left, window.innerWidth - width - 8),
+        width,
+        top,
+        maxHeight,
+        zIndex: 2000,
+      })
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
+  }, [menuOpen, filtered.length, query])
 
   const run = (work: () => Promise<void>): void => {
     if (pending) return
@@ -49,19 +119,22 @@ export function QueuePanel({ state, api, t, onClose, embedded = false }: QueuePa
     run(() => api.setQueue(queue, currentIndex))
   }
 
-  const add = (): void => {
-    const [provider, model] = pick.split('\0')
-    if (provider === undefined || model === undefined || provider === '' || model === '') return
-    const candidate = state.candidates.find(row => row.provider === provider && row.model === model)
+  const addCandidate = (row: FailoverCandidate): void => {
     const route: QueueRoute = {
-      provider,
-      model,
-      ...candidate === undefined ? {} : { label: candidate.name },
+      provider: row.provider,
+      model: row.model,
+      label: row.name,
     }
-    const queue = [...state.queue, route]
-    setPick('')
-    run(() => api.setQueue(queue, state.currentIndex))
+    setMenuOpen(false)
+    setQuery('')
+    run(() => api.setQueue([...state.queue, route], state.currentIndex))
   }
+
+  const pickerLabel = !state.candidatesLoaded
+    ? t('panel.add.loading')
+    : available.length === 0
+      ? t('panel.add.none')
+      : t('panel.add.placeholderCount', { count: available.length })
 
   return (
     <div
@@ -155,24 +228,55 @@ export function QueuePanel({ state, api, t, onClose, embedded = false }: QueuePa
           })}
         </ul>
       )}
-      <div className={CLASS.addRow}>
-        <select
-          className={CLASS.select}
-          value={pick}
-          disabled={pending || available.length === 0}
-          onChange={(event) => { setPick(event.target.value) }}
+      <div className={CLASS.picker} ref={pickerRef}>
+        <button
+          type="button"
+          className={CLASS.pickerBtn}
+          disabled={pending || !state.candidatesLoaded || available.length === 0}
+          aria-expanded={menuOpen}
+          aria-haspopup="listbox"
           aria-label={t('panel.add')}
+          onClick={() => { setMenuOpen(open => !open) }}
         >
-          <option value="">{t('panel.add.placeholder')}</option>
-          {available.map((row) => (
-            <option key={`${row.provider}\0${row.model}`} value={`${row.provider}\0${row.model}`}>
-              {row.providerName} / {row.name}
-            </option>
-          ))}
-        </select>
-        <button type="button" disabled={pending || pick === ''} onClick={add}>
-          {t('panel.add')}
+          {pickerLabel}
         </button>
+        {menuOpen && state.candidatesLoaded && available.length > 0 && menuPos !== null
+          ? createPortal(
+            <div className={CLASS.menu} ref={menuRef} style={menuPos}>
+              <input
+                className={CLASS.search}
+                value={query}
+                autoFocus
+                disabled={pending}
+                placeholder={t('panel.add.search')}
+                aria-label={t('panel.add.search')}
+                onChange={(event) => { setQuery(event.target.value) }}
+              />
+              {filtered.length === 0 ? (
+                <p className={CLASS.empty}>{t('panel.add.nomatch')}</p>
+              ) : (
+                <ul className={CLASS.catalog} role="listbox" aria-label={t('panel.add')}>
+                  {filtered.map((row) => (
+                    <li key={routeKey({ provider: row.provider, model: row.model })}>
+                      <button
+                        type="button"
+                        className={CLASS.catalogItem}
+                        role="option"
+                        disabled={pending}
+                        aria-label={`${t('panel.add')}: ${row.providerName} / ${row.name}`}
+                        onClick={() => { addCandidate(row) }}
+                      >
+                        <span className={CLASS.name}>{row.providerName} / {row.name}</span>
+                        <span className={CLASS.sub}>{row.provider} / {row.model}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>,
+            document.body,
+          )
+          : null}
       </div>
     </div>
   )

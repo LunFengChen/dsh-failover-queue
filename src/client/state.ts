@@ -4,12 +4,18 @@ import { clampIndex, dedupeQueue } from '../queue.ts'
 
 /** Live snapshot published to the chip via the inject hooks seat. */
 export interface FailoverSnapshot extends FailoverSettings {
-  /** Catalog rows the add dropdown can pick. */
+  /** Catalog rows the add list can pick. */
   readonly candidates: readonly FailoverCandidate[]
+  /** False until the first catalog/slash-command fetch finishes. */
+  readonly candidatesLoaded: boolean
 }
 
 const listeners = new Set<() => void>()
-let snapshot: FailoverSnapshot = { ...DEFAULT_SETTINGS, candidates: [] }
+let snapshot: FailoverSnapshot = {
+  ...DEFAULT_SETTINGS,
+  candidates: [],
+  candidatesLoaded: false,
+}
 
 function publish(next: FailoverSnapshot): void {
   snapshot = next
@@ -40,15 +46,16 @@ export function replaceSettings(settings: FailoverSettings): void {
     queue,
     currentIndex: clampIndex(settings.currentIndex, queue.length),
     candidates: snapshot.candidates,
+    candidatesLoaded: snapshot.candidatesLoaded,
   })
 }
 
 /**
- * Replace the add-dropdown catalog.
+ * Replace the add-list catalog.
  * @param candidates - advertised provider+model rows.
  */
 export function replaceCandidates(candidates: readonly FailoverCandidate[]): void {
-  publish({ ...snapshot, candidates })
+  publish({ ...snapshot, candidates, candidatesLoaded: true })
 }
 
 /** Read the current snapshot (event-handler path). */
