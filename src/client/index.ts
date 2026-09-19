@@ -62,9 +62,14 @@ function currentSessionId(ctx: Context, sessionId?: string): string {
   return typeof current === 'string' ? current : ''
 }
 
+function circuitState(value: unknown): 'closed' | 'open' | 'half_open' {
+  if (value === 'open' || value === 'half_open' || value === 'closed') return value
+  return 'closed'
+}
+
 function settingsFromUnknown(value: unknown): FailoverSettings | undefined {
   if (typeof value !== 'object' || value === null) return undefined
-  const record = value as { enabled?: unknown; currentIndex?: unknown; queue?: unknown }
+  const record = value as { enabled?: unknown; currentIndex?: unknown; queue?: unknown; circuits?: unknown }
   if (typeof record.enabled !== 'boolean') return undefined
   if (typeof record.currentIndex !== 'number') return undefined
   if (!Array.isArray(record.queue)) return undefined
@@ -78,7 +83,20 @@ function settingsFromUnknown(value: unknown): FailoverSettings | undefined {
       ...typeof item.label === 'string' ? { label: item.label } : {},
     }]
   })
-  return { enabled: record.enabled, currentIndex: record.currentIndex, queue }
+  const circuits = Array.isArray(record.circuits)
+    ? record.circuits.flatMap((row) => {
+      if (typeof row !== 'object' || row === null) return []
+      const item = row as { provider?: unknown; model?: unknown; state?: unknown; failures?: unknown }
+      if (typeof item.provider !== 'string' || typeof item.model !== 'string') return []
+      return [{
+        provider: item.provider,
+        model: item.model,
+        state: circuitState(item.state),
+        failures: typeof item.failures === 'number' && item.failures > 0 ? item.failures : 0,
+      }]
+    })
+    : []
+  return { enabled: record.enabled, currentIndex: record.currentIndex, queue, circuits }
 }
 
 /**

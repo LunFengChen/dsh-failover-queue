@@ -1,15 +1,22 @@
 /**
  * dsh-failover-queue: CC Switch-style P1/P2/P3 failover.
  *
- * Overlay `agent/request` with the active queue route. On `agent/request-error`,
- * let `llm-retry` finish same-route recovery first, then advance to the next
- * P and return `{ kind: 'retry' }`. AUTH / RATE_LIMIT / NO_ADAPTER skip that
- * wait. Composer chip and `/failover` read the same settings document.
+ * Overlay `agent/request` with the first available queue route (P1 preferred).
+ * On `agent/request-error`, open that route's circuit and retry the next
+ * available P. AUTH / RATE_LIMIT / NO_ADAPTER skip `llm-retry` and open on
+ * the first hit. After `cooldownMs`, P1 becomes HalfOpen and the next request
+ * probes it — failback is not sticky. Composer chip and `/failover` read the
+ * same settings document.
  *
  * @module @x1a0f3n9/dsh-failover-queue
  */
 
 import type { Context } from '@deepseek-ai/cordis'
+import {
+  CircuitBank,
+  firstAvailableIndex,
+  pickFirstAvailable,
+} from './circuit.ts'
 import { parseFailoverArg } from './command.ts'
 import {
   Config,
@@ -20,19 +27,18 @@ import {
   type ResolvedConfig,
 } from './config.ts'
 import {
-  advanceIndex,
   clampIndex,
   dedupeQueue,
   routeKey,
   shouldFailoverImmediately,
 } from './queue.ts'
-import { CANDIDATES_MARKER, type FailoverCandidate, type FailoverSettings, type QueueRoute } from './types.ts'
+import { CANDIDATES_MARKER, type FailoverCandidate, type FailoverSettings } from './types.ts'
 
 export const name = 'dsh-failover-queue'
 export const inject = ['llm']
 export { Config, resolveConfig, SETTINGS_NAMESPACE }
 export type { Config as ConfigInput, ResolvedConfig }
-export type { FailoverCandidate, FailoverSettings, QueueRoute } from './types.ts'
+export type { CircuitHealth, CircuitState, FailoverCandidate, FailoverSettings, QueueRoute } from './types.ts'
 export {
   advanceIndex,
   clampIndex,
@@ -42,6 +48,14 @@ export {
   routeDisplay,
   routeKey,
 } from './queue.ts'
+export {
+  CircuitBank,
+  CircuitBreaker,
+  circuitTone,
+  firstAvailableIndex,
+  healthFor,
+  pickFirstAvailable,
+} from './circuit.ts'
 export { parseFailoverArg } from './command.ts'
 
 interface LlmCallConfig {
@@ -68,6 +82,11 @@ interface LlmService {
   listModels(provider: string): Promise<Array<{ provider: string; id: string; name: string }>>
 }
 
+interface Flight {
+  readonly key: string
+  readonly halfOpen: boolean
+}
+
 /**
  * Mount settings, `/failover`, and the request overlay.
  * @param ctx - plugin context; requires `llm`.
@@ -75,7 +94,12 @@ interface LlmService {
  */
 export function apply(ctx: Context, config: Config = {}): void {
   const resolved = resolveConfig(config)
-  const cooledUntil = new Map<string, number>()
+  const bank = new CircuitBank({
+    failureThreshold: resolved.failureThreshold,
+    successThreshold: resolved.successThreshold,
+    timeoutMs: resolved.cooldownMs,
+  })
+  const flights = new Map<string, Flight>()
   let liveIndex: number | undefined
   let settings: SettingsScope | undefined
 
@@ -86,12 +110,17 @@ export function apply(ctx: Context, config: Config = {}): void {
       enabled: raw.enabled,
       queue,
       currentIndex: clampIndex(liveIndex ?? raw.currentIndex, queue.length),
+      circuits: bank.health(queue, Date.now()),
     }
   }
 
-  const writeIndex = (index: number): void => {
-    liveIndex = index
-    void settings?.update({ currentIndex: index })
+  const publish = (index?: number): void => {
+    if (index !== undefined) liveIndex = index
+    const state = read()
+    void settings?.update({
+      currentIndex: state.currentIndex,
+      circuits: state.circuits,
+    })
   }
 
   ctx.inject(['settings'], (scoped) => {
@@ -107,6 +136,7 @@ export function apply(ctx: Context, config: Config = {}): void {
     settings = holder.settings.register(SETTINGS_NAMESPACE, FailoverSettingsSchema, {
       base: DEFAULT_SETTINGS,
     })
+    publish()
     return () => {
       settings = undefined
     }
@@ -134,19 +164,22 @@ export function apply(ctx: Context, config: Config = {}): void {
     }
   })
 
-  ctx.on('agent/request', async (_payload: unknown, next: () => Promise<LlmCallConfig>) => {
+  ctx.on('agent/request', async (payload: unknown, next: () => Promise<LlmCallConfig>) => {
     const call = await next()
     const state = read()
     if (!state.enabled || state.queue.length === 0) return call
-    const route = state.queue[state.currentIndex]
-    if (route === undefined) return call
-    return { ...call, provider: route.provider, model: route.model }
+    const now = Date.now()
+    const pick = pickFirstAvailable(state.queue, bank, now)
+    if (pick === undefined) return call
+    flights.set(agentKey(payload), { key: routeKey(pick.route), halfOpen: pick.halfOpen })
+    publish(pick.index)
+    return { ...call, provider: pick.route.provider, model: pick.route.model }
   })
 
   ctx.on(
     'agent/request-error',
     async (
-      payload: { failure: { code: string }; provider: string },
+      payload: { failure: { code: string }; provider: string; agent?: { id?: string } },
       next: () => Promise<RequestErrorAction | undefined>,
     ) => {
       const state = read()
@@ -159,24 +192,61 @@ export function apply(ctx: Context, config: Config = {}): void {
         if (downstream?.kind === 'retry') return downstream
       }
 
-      if (!state.enabled || state.queue.length < 2) return downstream
+      if (!state.enabled || state.queue.length === 0) return downstream
 
       const now = Date.now()
-      const failed = state.queue[state.currentIndex]
-      if (failed !== undefined) {
-        cooledUntil.set(routeKey(failed), now + resolved.cooldownMs)
+      const id = agentKey(payload)
+      const flight = flights.get(id)
+      const failedKey = flight?.key ?? routeKeyFromIndex(state)
+      if (failedKey !== undefined) {
+        bank.get(failedKey).recordFailure(now, immediate)
+        flights.delete(id)
       }
 
-      const nextIndex = advanceIndex(
-        state.queue,
-        state.currentIndex,
-        route => (cooledUntil.get(routeKey(route)) ?? 0) > now,
-      )
-      if (nextIndex === undefined) return downstream
-      writeIndex(nextIndex)
+      if (state.queue.length < 2) {
+        publish()
+        return downstream
+      }
+
+      const nextIndex = firstAvailableIndex(state.queue, bank, now, failedKey)
+      if (nextIndex === undefined) {
+        publish()
+        return downstream
+      }
+      publish(nextIndex)
       return { kind: 'retry' }
     },
+    { prepend: true },
   )
+
+  ctx.on('agent/assistant-stream', (payload: {
+    agent?: { id?: string }
+    frame?: {
+      type?: string
+      outcome?: { kind?: string; eventType?: string }
+    }
+  }) => {
+    if (payload.frame?.type !== 'end') return
+    if (payload.frame.outcome?.kind !== 'committed') return
+    if (payload.frame.outcome.eventType !== 'assistant/message') return
+    const id = agentKey(payload)
+    const flight = flights.get(id)
+    if (flight === undefined) return
+    flights.delete(id)
+    bank.get(flight.key).recordSuccess()
+    publish()
+  })
+}
+
+function routeKeyFromIndex(state: FailoverSettings): string | undefined {
+  const route = state.queue[state.currentIndex]
+  return route === undefined ? undefined : routeKey(route)
+}
+
+function agentKey(payload: unknown): string {
+  if (typeof payload !== 'object' || payload === null) return 'default'
+  const agent = (payload as { agent?: { id?: unknown } }).agent
+  return typeof agent?.id === 'string' && agent.id !== '' ? agent.id : 'default'
 }
 
 async function handleFailoverCommand(
@@ -199,7 +269,7 @@ async function handleFailoverCommand(
     return {
       kind: 'success',
       text: verb.kind === 'on'
-        ? 'Failover on. Requests use P1, then P2, then P3 on failure.'
+        ? 'Failover on. Requests prefer P1; P2/P3 are backups. Recovered P1 is probed and selected again.'
         : 'Failover off. The session model is used as-is.',
     }
   }
@@ -215,7 +285,11 @@ async function handleFailoverCommand(
   const lines = state.queue.map((route, index) => {
     const mark = index === state.currentIndex ? '*' : ' '
     const label = route.label?.trim() || `${route.provider}/${route.model}`
-    return `${mark} P${index + 1}  ${label}  (${route.provider} ${route.model})`
+    const health = state.circuits?.find(row => row.provider === route.provider && row.model === route.model)
+    const badge = health === undefined || health.state === 'closed'
+      ? ''
+      : `  [${health.state}]`
+    return `${mark} P${index + 1}  ${label}  (${route.provider} ${route.model})${badge}`
   })
   return {
     kind: 'success',

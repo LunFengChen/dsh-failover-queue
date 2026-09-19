@@ -8,7 +8,7 @@ CC Switch 风格的 **P1 / P2 / P3** 故障转移插件，给 DeepSeek Harness /
 - 拖动手柄改优先级（P1 主，P2 / P3 备用）
 - 从当前已配置的供应商+模型里加路由
 
-失败时：同一条路由先走 `llm-retry`；`AUTH` / `RATE_LIMIT` / `NO_ADAPTER` 立刻切下一条。开启后请求打到队列里当前那条，不看会话里随手选的模型。
+失败时：同一条路由先走 `llm-retry`；`AUTH` / `RATE_LIMIT` / `NO_ADAPTER` 立刻熔断并切下一条。`cooldownMs` 之后 P1 进入半开探活，下一次请求会切回 P1，不会粘在 P2。开启后请求优先打健康的最高优先级档，不看会话里随手选的模型。
 
 ## 安装
 
@@ -49,6 +49,8 @@ dsh plugin --profile web add /path/to/dsh-failover-queue
 - id: dsh-failover-queue
   config:
     cooldownMs: 60000
+    failureThreshold: 2
+    successThreshold: 2
     immediateCodes: [AUTH, RATE_LIMIT, NO_ADAPTER]
 ```
 

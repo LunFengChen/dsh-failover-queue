@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { groupCandidatesByProvider } from '../candidates.ts'
+import { circuitTone, healthFor } from '../circuit.ts'
 import { clampIndex, indexAfterReorder, reorderQueue, routeDisplay, routeKey } from '../queue.ts'
 import type { FailoverCandidate } from '../types.ts'
 import type { FailoverKey } from './locales.ts'
@@ -204,6 +205,14 @@ export function QueuePanel({ state, api, t, onClose, embedded = false }: QueuePa
             const active = index === clampIndex(state.currentIndex, state.queue.length)
             const display = routeDisplay(route, state.candidates)
             const title = `${display.provider}/${display.model}`
+            const tone = circuitTone(healthFor(route, state.circuits ?? []))
+            const healthKey = tone === 'ok'
+              ? 'panel.health.ok'
+              : tone === 'probe' ? 'panel.health.probe' : 'panel.health.open'
+            const healthLabel = t(healthKey)
+            const healthClass = tone === 'ok'
+              ? CLASS.healthOk
+              : tone === 'probe' ? CLASS.healthProbe : CLASS.healthOpen
             return (
               <li
                 key={routeKey(route)}
@@ -228,6 +237,7 @@ export function QueuePanel({ state, api, t, onClose, embedded = false }: QueuePa
                 >
                   ⋮⋮
                 </span>
+                <span className={`${CLASS.health} ${healthClass}`} title={healthLabel} aria-label={healthLabel} />
                 <span className={CLASS.badge}>P{index + 1}</span>
                 <span className={CLASS.meta}>
                   <span className={CLASS.name}>

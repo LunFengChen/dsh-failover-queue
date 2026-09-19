@@ -29,6 +29,9 @@ export type FailoverKey =
   | 'panel.current'
   | 'panel.close'
   | 'panel.hint'
+  | 'panel.health.ok'
+  | 'panel.health.probe'
+  | 'panel.health.open'
   | 'settings.tab'
   | 'settings.intro'
 
@@ -42,7 +45,7 @@ export const zh: Record<FailoverKey, string> = {
   'chip.title.off': '自动故障转移关闭。点进去开启并编排队列。',
   'panel.title': '故障转移队列',
   'panel.switch': '自动故障转移',
-  'panel.switch.on': '失败按 P1 → P2 → P3 切换',
+  'panel.switch.on': '失败按 P1 → P2 → P3 切换；P1 恢复后探活切回',
   'panel.switch.off': '只用当前会话模型，不跨路由',
   'panel.empty': '队列是空的。从下面点一条路由，P1 就是主供应商。',
   'panel.add': '加入队列',
@@ -58,9 +61,12 @@ export const zh: Record<FailoverKey, string> = {
   'panel.drag': '拖动改优先级',
   'panel.current': '当前',
   'panel.close': '关闭',
-  'panel.hint': '拖动左侧手柄调整 P1/P2/P3。点一行设为当前。',
+  'panel.hint': '拖动左侧手柄调整 P1/P2/P3。失败切下一档；P1 恢复后会探活切回，不会粘在 P2。',
+  'panel.health.ok': '健康',
+  'panel.health.probe': '探活中',
+  'panel.health.open': '已熔断',
   'settings.tab': '故障转移',
-  'settings.intro': '编排 P1 / P2 / P3。开启后请求走队列当前档，不看会话里随手选的模型。',
+  'settings.intro': '编排 P1 / P2 / P3。开启后请求优先 P1；失败熔断后切备用档，P1 恢复后探活切回。',
 }
 
 export const en: Record<FailoverKey, string> = {
@@ -73,7 +79,7 @@ export const en: Record<FailoverKey, string> = {
   'chip.title.off': 'Auto failover is off. Click to enable and edit the queue.',
   'panel.title': 'Failover queue',
   'panel.switch': 'Auto failover',
-  'panel.switch.on': 'On failure, switch P1 → P2 → P3',
+  'panel.switch.on': 'On failure, switch P1 → P2 → P3; recovered P1 is probed again',
   'panel.switch.off': 'Use the session model only',
   'panel.empty': 'Queue is empty. Click a route below. P1 is the primary.',
   'panel.add': 'Add to queue',
@@ -89,7 +95,10 @@ export const en: Record<FailoverKey, string> = {
   'panel.drag': 'Drag to reorder',
   'panel.current': 'current',
   'panel.close': 'Close',
-  'panel.hint': 'Drag the handle to change P1/P2/P3. Click a row to make it current.',
+  'panel.hint': 'Drag the handle to change P1/P2/P3. Failover is not sticky: P1 is probed again after it recovers.',
+  'panel.health.ok': 'healthy',
+  'panel.health.probe': 'probing',
+  'panel.health.open': 'open',
   'settings.tab': 'Failover',
-  'settings.intro': 'Arrange P1 / P2 / P3. While on, requests use the active queue slot, not the session picker.',
+  'settings.intro': 'Arrange P1 / P2 / P3. While on, requests prefer P1. A recovered P1 is probed and selected again.',
 }

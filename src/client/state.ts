@@ -13,6 +13,7 @@ export interface FailoverSnapshot extends FailoverSettings {
 const listeners = new Set<() => void>()
 let snapshot: FailoverSnapshot = {
   ...DEFAULT_SETTINGS,
+  circuits: [],
   candidates: [],
   candidatesLoaded: false,
 }
@@ -45,6 +46,7 @@ export function replaceSettings(settings: FailoverSettings): void {
     enabled: settings.enabled,
     queue,
     currentIndex: clampIndex(settings.currentIndex, queue.length),
+    circuits: settings.circuits ?? [],
     candidates: snapshot.candidates,
     candidatesLoaded: snapshot.candidatesLoaded,
   })

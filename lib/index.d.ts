@@ -11,14 +11,25 @@ interface QueueRoute {
   /** Optional display label; the chip falls back to `provider/model`. */
   readonly label?: string;
 }
+/** Closed = healthy, Open = skipped, HalfOpen = one probe. */
+type CircuitState = 'closed' | 'open' | 'half_open';
+/** Host-projected breaker badge for one queue route. Memory-only on the host. */
+interface CircuitHealth {
+  readonly provider: string;
+  readonly model: string;
+  readonly state: CircuitState;
+  readonly failures: number;
+}
 /** Persisted failover document (settings namespace `dsh-failover-queue`). */
 interface FailoverSettings {
   /** When false, the plugin never overlays or retries across routes. */
   enabled: boolean;
-  /** Active queue index (P1 = 0). Clamped on read. */
+  /** Last picked queue index (P1 = 0). Clamped on read. Not a sticky pointer. */
   currentIndex: number;
   /** Ordered routes. Index 0 is P1. */
   queue: QueueRoute[];
+  /** Live circuit badges. Host memory is the source of truth. */
+  circuits?: CircuitHealth[];
 }
 /** One advertised catalog row the panel can add. */
 interface FailoverCandidate {
@@ -31,17 +42,23 @@ interface FailoverCandidate {
 //#region src/config.d.ts
 /** Plugin config accepted from cordis.yml / the bundle patch. */
 interface Config {
-  /** Milliseconds a failed route stays skipped. Default 60000. */
+  /** Milliseconds an Open circuit waits before a HalfOpen probe. Default 60000. */
   cooldownMs?: number;
+  /** Consecutive failures that open a Closed breaker. Default 2. */
+  failureThreshold?: number;
+  /** Consecutive HalfOpen successes that close the breaker. Default 2. */
+  successThreshold?: number;
   /**
-   * Failure codes that skip remaining same-route retries and jump to the
-   * next P immediately. Default `AUTH`, `RATE_LIMIT`, `NO_ADAPTER`.
+   * Failure codes that skip remaining same-route retries, open the circuit
+   * immediately, and jump to the next P. Default `AUTH`, `RATE_LIMIT`, `NO_ADAPTER`.
    */
   immediateCodes?: string[];
 }
 /** Config after schema defaults. */
 interface ResolvedConfig {
   cooldownMs: number;
+  failureThreshold: number;
+  successThreshold: number;
   immediateCodes: readonly string[];
 }
 /** Runtime schema. */
@@ -104,6 +121,126 @@ declare function routeDisplay(route: QueueRoute, candidates?: readonly FailoverC
   model: string;
 };
 //#endregion
+//#region src/circuit.d.ts
+/** Closed / Open / HalfOpen knobs. Chat-friendly defaults, CC Switch-shaped. */
+interface CircuitConfig {
+  /** Consecutive failures that open a Closed breaker. */
+  readonly failureThreshold: number;
+  /** Consecutive HalfOpen successes that close the breaker. */
+  readonly successThreshold: number;
+  /** Milliseconds an Open breaker waits before becoming HalfOpen. */
+  readonly timeoutMs: number;
+}
+/** Result of taking a HalfOpen probe permit. */
+interface ProbeDecision {
+  readonly allowed: boolean;
+  readonly halfOpen: boolean;
+}
+/** One queue pick: first Closed, else first HalfOpen. */
+interface CircuitPick {
+  readonly index: number;
+  readonly route: QueueRoute;
+  readonly halfOpen: boolean;
+}
+/**
+ * One route's Closed / Open / HalfOpen breaker.
+ *
+ * HalfOpen allows a single in-flight probe. Open becomes HalfOpen after
+ * `timeoutMs`. Immediate failures (AUTH / RATE_LIMIT / NO_ADAPTER) open on
+ * the first hit. Memory-only: a process restart starts Closed.
+ */
+declare class CircuitBreaker {
+  private readonly config;
+  private state;
+  private failures;
+  private successes;
+  private openedAt;
+  private halfOpenPermit;
+  /**
+   * @param config - thresholds and Open timeout.
+   */
+  constructor(config: CircuitConfig);
+  /** Copy of counters for badges and tests. */
+  snapshot(): {
+    readonly state: CircuitState;
+    readonly failures: number;
+    readonly successes: number;
+    readonly openedAt: number | null;
+  };
+  /**
+   * Whether this route may be selected. Open → HalfOpen when the wait elapses.
+   * Does not consume the probe permit.
+   * @param now - epoch ms.
+   */
+  isAvailable(now: number): boolean;
+  /**
+   * Reserve this route for one request. HalfOpen consumes the single permit.
+   * @param now - epoch ms.
+   */
+  allowProbe(now: number): ProbeDecision;
+  /** Probe succeeded. Two successes close a HalfOpen breaker. */
+  recordSuccess(): void;
+  /**
+   * Probe or Closed request failed.
+   * @param now - epoch ms used as Open timestamp.
+   * @param immediate - open on this hit regardless of `failureThreshold`.
+   */
+  recordFailure(now: number, immediate?: boolean): void;
+  /** Drop the HalfOpen permit without changing health (cancel / abandon). */
+  releaseProbe(): void;
+  private maybeHalfOpen;
+  private transitionOpen;
+  private transitionClosed;
+}
+/** Per-route breaker map. Missing keys start Closed. */
+declare class CircuitBank {
+  private readonly config;
+  private readonly breakers;
+  /**
+   * @param config - shared knobs for every route.
+   */
+  constructor(config: CircuitConfig);
+  /**
+   * Breaker for one provider+model pair.
+   * @param key - {@link routeKey}.
+   */
+  get(key: string): CircuitBreaker;
+  /**
+   * Badge rows for the live queue. Touches `isAvailable` so Open can show
+   * HalfOpen after the wait without consuming a permit.
+   * @param queue - ordered routes.
+   * @param now - epoch ms.
+   */
+  health(queue: readonly QueueRoute[], now: number): CircuitHealth[];
+}
+/**
+ * First Closed route, else first HalfOpen with a free permit. Never sticky.
+ * @param queue - P1…Pn.
+ * @param bank - per-route breakers.
+ * @param now - epoch ms.
+ * @param skip - route key to ignore (the attempt that just failed).
+ */
+declare function pickFirstAvailable(queue: readonly QueueRoute[], bank: CircuitBank, now: number, skip?: string): CircuitPick | undefined;
+/**
+ * Queue index of the first available route, without consuming a probe permit.
+ * @param queue - P1…Pn.
+ * @param bank - per-route breakers.
+ * @param now - epoch ms.
+ * @param skip - route key to ignore.
+ */
+declare function firstAvailableIndex(queue: readonly QueueRoute[], bank: CircuitBank, now: number, skip?: string): number | undefined;
+/**
+ * Badge tone for one queue row.
+ * @param health - host snapshot for this route, if any.
+ */
+declare function circuitTone(health: CircuitHealth | undefined): 'ok' | 'probe' | 'open';
+/**
+ * Match a queue route to a health row.
+ * @param route - queue slot.
+ * @param circuits - host snapshot.
+ */
+declare function healthFor(route: QueueRoute, circuits: readonly CircuitHealth[]): CircuitHealth | undefined;
+//#endregion
 //#region src/command.d.ts
 /** `/failover` verbs the host handler and tests share. */
 type FailoverVerb = {
@@ -134,4 +271,4 @@ declare const inject: string[];
  */
 declare function apply(ctx: Context, config?: Config): void;
 //#endregion
-export { Config, type Config as ConfigInput, type FailoverCandidate, type FailoverSettings, type QueueRoute, type ResolvedConfig, SETTINGS_NAMESPACE, advanceIndex, apply, clampIndex, dedupeQueue, indexAfterReorder, inject, name, parseFailoverArg, reorderQueue, resolveConfig, routeDisplay, routeKey };
+export { CircuitBank, CircuitBreaker, type CircuitHealth, type CircuitState, Config, type Config as ConfigInput, type FailoverCandidate, type FailoverSettings, type QueueRoute, type ResolvedConfig, SETTINGS_NAMESPACE, advanceIndex, apply, circuitTone, clampIndex, dedupeQueue, firstAvailableIndex, healthFor, indexAfterReorder, inject, name, parseFailoverArg, pickFirstAvailable, reorderQueue, resolveConfig, routeDisplay, routeKey };
