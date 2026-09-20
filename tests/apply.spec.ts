@@ -57,7 +57,44 @@ describe('failover apply', () => {
     expect(result).toMatchObject({ provider: 'huoshan', model: 'flash' })
   })
 
-  it('retries onto the next P after a RATE_LIMIT without waiting on llm-retry', async () => {
+  it.each(['AUTH', 'RATE_LIMIT', 'NO_ADAPTER', 'SERVER', 'TIMEOUT', 'TRANSPORT'])(
+    'retries onto the next P after %s without waiting on llm-retry',
+    async (code) => {
+      const { ctx, store } = await mount({
+        enabled: true,
+        currentIndex: 0,
+        queue: [
+          { provider: 'huoshan', model: 'flash' },
+          { provider: 'deepseek', model: 'deepseek-chat' },
+        ],
+      })
+      const downstream: string[] = []
+      const result = await (ctx as Context & {
+        waterfall: (
+          name: string,
+          payload: unknown,
+          next: () => Promise<{ kind: 'retry' } | undefined>,
+        ) => Promise<{ kind: 'retry' } | undefined>
+      }).waterfall(
+        'agent/request-error',
+        { failure: { code }, provider: 'huoshan' },
+        async () => {
+          downstream.push('next')
+          return { kind: 'retry' as const }
+        },
+      )
+      expect(downstream).toEqual([])
+      expect(result).toEqual({ kind: 'retry' })
+      expect(store.value.currentIndex).toBe(1)
+      expect(store.value.circuits?.[0]).toMatchObject({
+        provider: 'huoshan',
+        model: 'flash',
+        state: 'open',
+      })
+    },
+  )
+
+  it('lets llm-retry keep an EMPTY_RESPONSE on the same P', async () => {
     const { ctx, store } = await mount({
       enabled: true,
       currentIndex: 0,
@@ -75,20 +112,15 @@ describe('failover apply', () => {
       ) => Promise<{ kind: 'retry' } | undefined>
     }).waterfall(
       'agent/request-error',
-      { failure: { code: 'RATE_LIMIT' }, provider: 'huoshan' },
+      { failure: { code: 'EMPTY_RESPONSE' }, provider: 'huoshan' },
       async () => {
         downstream.push('next')
         return { kind: 'retry' as const }
       },
     )
-    expect(downstream).toEqual([])
+    expect(downstream).toEqual(['next'])
     expect(result).toEqual({ kind: 'retry' })
-    expect(store.value.currentIndex).toBe(1)
-    expect(store.value.circuits?.[0]).toMatchObject({
-      provider: 'huoshan',
-      model: 'flash',
-      state: 'open',
-    })
+    expect(store.value.currentIndex).toBe(0)
   })
 
   it('keeps overlaying P2 until P1\'s open window elapses', async () => {

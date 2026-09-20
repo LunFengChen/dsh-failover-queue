@@ -11,7 +11,8 @@ export interface Config {
   successThreshold?: number
   /**
    * Failure codes that skip remaining same-route retries, open the circuit
-   * immediately, and jump to the next P. Default `AUTH`, `RATE_LIMIT`, `NO_ADAPTER`.
+   * immediately, and jump to the next P. Default includes 5xx / timeout /
+   * transport so a backup P is used instead of waiting out `llm-retry`.
    */
   immediateCodes?: string[]
 }
@@ -24,12 +25,25 @@ export interface ResolvedConfig {
   immediateCodes: readonly string[]
 }
 
+/**
+ * Codes that mean this route cannot serve the request now.
+ * `EMPTY_RESPONSE` stays on same-route `llm-retry`.
+ */
+export const DEFAULT_IMMEDIATE_CODES = [
+  'AUTH',
+  'RATE_LIMIT',
+  'NO_ADAPTER',
+  'SERVER',
+  'TIMEOUT',
+  'TRANSPORT',
+] as const
+
 /** Runtime schema. */
 export const Config: z<Config> = z.object({
   cooldownMs: z.number().min(0).default(60_000),
   failureThreshold: z.number().min(1).default(2),
   successThreshold: z.number().min(1).default(2),
-  immediateCodes: z.array(z.string()).default(['AUTH', 'RATE_LIMIT', 'NO_ADAPTER']),
+  immediateCodes: z.array(z.string()).default([...DEFAULT_IMMEDIATE_CODES]),
 })
 
 /**
