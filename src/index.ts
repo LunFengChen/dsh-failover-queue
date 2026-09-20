@@ -3,10 +3,10 @@
  *
  * Overlay `agent/request` with the first available queue route (P1 preferred).
  * On `agent/request-error`, open that route's circuit and retry the next
- * available P. AUTH / RATE_LIMIT / NO_ADAPTER skip `llm-retry` and open on
- * the first hit. After `cooldownMs`, P1 becomes HalfOpen and the next request
- * probes it — failback is not sticky. Composer chip and `/failover` read the
- * same settings document.
+ * available P. AUTH / RATE_LIMIT / NO_ADAPTER / SERVER / TIMEOUT / TRANSPORT
+ * skip `llm-retry` and open on the first hit. After `cooldownMs`, P1 becomes
+ * HalfOpen and the next request probes it — failback is not sticky. Composer
+ * chip and `/failover` read the same settings document.
  *
  * @module @x1a0f3n9/dsh-failover-queue
  */
@@ -20,6 +20,7 @@ import {
 import { parseFailoverArg } from './command.ts'
 import {
   Config,
+  DEFAULT_IMMEDIATE_CODES,
   DEFAULT_SETTINGS,
   FailoverSettingsSchema,
   resolveConfig,
@@ -36,7 +37,7 @@ import { CANDIDATES_MARKER, type FailoverCandidate, type FailoverSettings } from
 
 export const name = 'dsh-failover-queue'
 export const inject = ['llm']
-export { Config, resolveConfig, SETTINGS_NAMESPACE }
+export { Config, DEFAULT_IMMEDIATE_CODES, resolveConfig, SETTINGS_NAMESPACE }
 export type { Config as ConfigInput, ResolvedConfig }
 export type { CircuitHealth, CircuitState, FailoverCandidate, FailoverSettings, QueueRoute } from './types.ts'
 export {

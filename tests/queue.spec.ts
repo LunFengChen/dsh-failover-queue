@@ -10,6 +10,7 @@ import {
   routeKey,
   shouldFailoverImmediately,
 } from '../src/queue.ts'
+import { DEFAULT_IMMEDIATE_CODES, resolveConfig } from '../src/config.ts'
 
 const a = { provider: 'huoshan', model: 'flash', label: '火山' }
 const b = { provider: 'deepseek', model: 'deepseek-chat' }
@@ -51,6 +52,15 @@ describe('queue helpers', () => {
     const codes = ['AUTH', 'RATE_LIMIT', 'NO_ADAPTER']
     expect(shouldFailoverImmediately('RATE_LIMIT', codes)).toBe(true)
     expect(shouldFailoverImmediately('TIMEOUT', codes)).toBe(false)
+  })
+
+  it('defaults 5xx timeout and transport onto the next P', () => {
+    const codes = resolveConfig().immediateCodes
+    expect(codes).toEqual([...DEFAULT_IMMEDIATE_CODES])
+    expect(shouldFailoverImmediately('SERVER', codes)).toBe(true)
+    expect(shouldFailoverImmediately('TIMEOUT', codes)).toBe(true)
+    expect(shouldFailoverImmediately('TRANSPORT', codes)).toBe(true)
+    expect(shouldFailoverImmediately('EMPTY_RESPONSE', codes)).toBe(false)
   })
 
   it('names a route from catalog titles, then the stored label', () => {

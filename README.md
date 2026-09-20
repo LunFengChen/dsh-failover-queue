@@ -10,7 +10,7 @@ A `P1` / `P-` chip sits on the composer. Click it to:
 - Drag to reorder priority (P1 primary, P2 / P3 backup)
 - Add routes from the live provider+model catalog
 
-On failure, same-route `llm-retry` runs first. `AUTH` / `RATE_LIMIT` / `NO_ADAPTER` skip that wait, open the circuit, and jump to the next P. After `cooldownMs`, P1 becomes HalfOpen and the next request probes it — failover is not sticky. While enabled, requests prefer the first healthy P, not the session picker.
+On failure, same-route `llm-retry` runs first. `AUTH` / `RATE_LIMIT` / `NO_ADAPTER` / `SERVER` / `TIMEOUT` / `TRANSPORT` skip that wait, open the circuit, and jump to the next P. A 503 does not wait out twenty same-route retries. After `cooldownMs`, P1 becomes HalfOpen and the next request probes it — failover is not sticky. While enabled, requests prefer the first healthy P, not the session picker.
 
 ## Install
 
@@ -53,7 +53,7 @@ Reload the Web GUI. The composer shows `P-`. Settings left nav has a **Failover*
     cooldownMs: 60000
     failureThreshold: 2
     successThreshold: 2
-    immediateCodes: [AUTH, RATE_LIMIT, NO_ADAPTER]
+    immediateCodes: [AUTH, RATE_LIMIT, NO_ADAPTER, SERVER, TIMEOUT, TRANSPORT]
 ```
 
 ## Limits

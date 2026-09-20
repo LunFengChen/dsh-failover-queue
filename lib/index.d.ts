@@ -50,7 +50,8 @@ interface Config {
   successThreshold?: number;
   /**
    * Failure codes that skip remaining same-route retries, open the circuit
-   * immediately, and jump to the next P. Default `AUTH`, `RATE_LIMIT`, `NO_ADAPTER`.
+   * immediately, and jump to the next P. Default includes 5xx / timeout /
+   * transport so a backup P is used instead of waiting out `llm-retry`.
    */
   immediateCodes?: string[];
 }
@@ -61,6 +62,11 @@ interface ResolvedConfig {
   successThreshold: number;
   immediateCodes: readonly string[];
 }
+/**
+ * Codes that mean this route cannot serve the request now.
+ * `EMPTY_RESPONSE` stays on same-route `llm-retry`.
+ */
+declare const DEFAULT_IMMEDIATE_CODES: readonly ["AUTH", "RATE_LIMIT", "NO_ADAPTER", "SERVER", "TIMEOUT", "TRANSPORT"];
 /** Runtime schema. */
 declare const Config: z<Config>;
 /**
@@ -146,8 +152,9 @@ interface CircuitPick {
  * One route's Closed / Open / HalfOpen breaker.
  *
  * HalfOpen allows a single in-flight probe. Open becomes HalfOpen after
- * `timeoutMs`. Immediate failures (AUTH / RATE_LIMIT / NO_ADAPTER) open on
- * the first hit. Memory-only: a process restart starts Closed.
+ * `timeoutMs`. Immediate failures (AUTH / RATE_LIMIT / NO_ADAPTER / SERVER /
+ * TIMEOUT / TRANSPORT) open on the first hit. Memory-only: a process restart
+ * starts Closed.
  */
 declare class CircuitBreaker {
   private readonly config;
@@ -271,4 +278,4 @@ declare const inject: string[];
  */
 declare function apply(ctx: Context, config?: Config): void;
 //#endregion
-export { CircuitBank, CircuitBreaker, type CircuitHealth, type CircuitState, Config, type Config as ConfigInput, type FailoverCandidate, type FailoverSettings, type QueueRoute, type ResolvedConfig, SETTINGS_NAMESPACE, advanceIndex, apply, circuitTone, clampIndex, dedupeQueue, firstAvailableIndex, healthFor, indexAfterReorder, inject, name, parseFailoverArg, pickFirstAvailable, reorderQueue, resolveConfig, routeDisplay, routeKey };
+export { CircuitBank, CircuitBreaker, type CircuitHealth, type CircuitState, Config, type Config as ConfigInput, DEFAULT_IMMEDIATE_CODES, type FailoverCandidate, type FailoverSettings, type QueueRoute, type ResolvedConfig, SETTINGS_NAMESPACE, advanceIndex, apply, circuitTone, clampIndex, dedupeQueue, firstAvailableIndex, healthFor, indexAfterReorder, inject, name, parseFailoverArg, pickFirstAvailable, reorderQueue, resolveConfig, routeDisplay, routeKey };

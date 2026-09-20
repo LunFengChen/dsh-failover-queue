@@ -35,8 +35,9 @@ export interface CircuitPick {
  * One route's Closed / Open / HalfOpen breaker.
  *
  * HalfOpen allows a single in-flight probe. Open becomes HalfOpen after
- * `timeoutMs`. Immediate failures (AUTH / RATE_LIMIT / NO_ADAPTER) open on
- * the first hit. Memory-only: a process restart starts Closed.
+ * `timeoutMs`. Immediate failures (AUTH / RATE_LIMIT / NO_ADAPTER / SERVER /
+ * TIMEOUT / TRANSPORT) open on the first hit. Memory-only: a process restart
+ * starts Closed.
  */
 export class CircuitBreaker {
   private state: CircuitState = 'closed'
