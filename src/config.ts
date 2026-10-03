@@ -1,6 +1,10 @@
 import z from '@deepseek-ai/schemastery'
 import type { CircuitHealth, FailoverSettings, QueueRoute } from './types.ts'
 
+function live<T>(schema: z<T>): z<T> {
+  return (schema as z<T> & { extra(key: string, value: boolean): z<T> }).extra('volatile', true)
+}
+
 /** Plugin config accepted from cordis.yml / the bundle patch. */
 export interface Config {
   /** Milliseconds an Open circuit waits before a HalfOpen probe. Default 60000. */
@@ -15,6 +19,10 @@ export interface Config {
    * transport so a backup P is used instead of waiting out `llm-retry`.
    */
   immediateCodes?: string[]
+  enabled?: boolean
+  currentIndex?: number
+  queue?: QueueRoute[]
+  circuits?: CircuitHealth[]
 }
 
 /** Config after schema defaults. */
@@ -38,25 +46,6 @@ export const DEFAULT_IMMEDIATE_CODES = [
   'TRANSPORT',
 ] as const
 
-/** Runtime schema. */
-export const Config: z<Config> = z.object({
-  cooldownMs: z.number().min(0).default(60_000),
-  failureThreshold: z.number().min(1).default(2),
-  successThreshold: z.number().min(1).default(2),
-  immediateCodes: z.array(z.string()).default([...DEFAULT_IMMEDIATE_CODES]),
-})
-
-/**
- * Apply schema defaults.
- * @param config - raw plugin config, possibly partial.
- */
-export function resolveConfig(config: Config = {}): ResolvedConfig {
-  return Config(config) as ResolvedConfig
-}
-
-/** Settings namespace (hyphenated; settings forbids dots). */
-export const SETTINGS_NAMESPACE = 'dsh-failover-queue'
-
 const QueueRouteSchema: z<QueueRoute> = z.object({
   provider: z.string(),
   model: z.string(),
@@ -70,14 +59,6 @@ const CircuitHealthSchema: z<CircuitHealth> = z.object({
   failures: z.number().min(0).default(0),
 })
 
-/** Persisted user document. */
-export const FailoverSettingsSchema: z<FailoverSettings> = z.object({
-  enabled: z.boolean().default(false),
-  currentIndex: z.number().step(1).min(0).default(0),
-  queue: z.array(QueueRouteSchema).default([]),
-  circuits: z.array(CircuitHealthSchema).default([]),
-})
-
 /** Empty queue, failover off. */
 export const DEFAULT_SETTINGS: FailoverSettings = {
   enabled: false,
@@ -85,3 +66,46 @@ export const DEFAULT_SETTINGS: FailoverSettings = {
   queue: [],
   circuits: [],
 }
+
+const TunableConfig: z<Pick<Config, 'cooldownMs' | 'failureThreshold' | 'successThreshold' | 'immediateCodes'>> = z.object({
+  cooldownMs: z.number().min(0).default(60_000),
+  failureThreshold: z.number().min(1).default(2),
+  successThreshold: z.number().min(1).default(2),
+  immediateCodes: z.array(z.string()).default([...DEFAULT_IMMEDIATE_CODES]),
+})
+
+/** Persisted user document. */
+export const FailoverSettingsSchema: z<FailoverSettings> = z.object({
+  enabled: live(z.boolean().default(false)),
+  currentIndex: live(z.number().step(1).min(0).default(0)),
+  queue: live(z.array(QueueRouteSchema).default([])),
+  circuits: live(z.array(CircuitHealthSchema).default([])),
+})
+
+/** Runtime schema. */
+export const Config: z<Config> = z.object({
+  cooldownMs: z.number().min(0).default(60_000),
+  failureThreshold: z.number().min(1).default(2),
+  successThreshold: z.number().min(1).default(2),
+  immediateCodes: z.array(z.string()).default([...DEFAULT_IMMEDIATE_CODES]),
+  enabled: live(z.boolean().default(false)),
+  currentIndex: live(z.number().step(1).min(0).default(0)),
+  queue: live(z.array(QueueRouteSchema).default([])),
+  circuits: live(z.array(CircuitHealthSchema).default([])),
+})
+
+/**
+ * Apply schema defaults.
+ * @param config - raw plugin config, possibly partial.
+ */
+export function resolveConfig(config: Config = {}): ResolvedConfig {
+  return TunableConfig({
+    cooldownMs: config.cooldownMs,
+    failureThreshold: config.failureThreshold,
+    successThreshold: config.successThreshold,
+    immediateCodes: config.immediateCodes,
+  }) as ResolvedConfig
+}
+
+/** Settings namespace (hyphenated; settings forbids dots). */
+export const SETTINGS_NAMESPACE = 'dsh-failover-queue'

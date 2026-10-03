@@ -19,14 +19,10 @@ function boot(settings: FailoverSettings = DEFAULT_SETTINGS, config: failover.Co
   ctx.provide('llm', llm)
   ;(ctx as Context & { llm: typeof llm }).llm = llm
   ctx.provide('settings', {
-    register: (_ns: string, _schema: unknown, options: { base: FailoverSettings }) => {
-      store.value = { ...options.base, ...store.value }
-      return {
-        get: () => store.value,
-        update: async (patch: Partial<FailoverSettings>) => {
-          store.value = { ...store.value, ...patch }
-        },
-      }
+    configure: () => () => {},
+    describe: () => [{ ns: SETTINGS_NAMESPACE, value: store.value, revision: 0 }],
+    update: async (_ns: string, patch: object) => {
+      store.value = { ...store.value, ...patch }
     },
   })
   return { ctx, store, config }

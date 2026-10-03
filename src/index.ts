@@ -22,7 +22,6 @@ import {
   Config,
   DEFAULT_IMMEDIATE_CODES,
   DEFAULT_SETTINGS,
-  FailoverSettingsSchema,
   resolveConfig,
   SETTINGS_NAMESPACE,
   type ResolvedConfig,
@@ -127,18 +126,35 @@ export function apply(ctx: Context, config: Config = {}): void {
   ctx.inject(['settings'], (scoped) => {
     const holder = scoped as Context & {
       settings: {
-        register: (
-          ns: string,
-          schema: unknown,
-          options: { base: FailoverSettings },
-        ) => SettingsScope
+        describe: () => Array<{ ns: string; revision?: number; value?: unknown }>
+        update: (ns: string, patch: object, expectedRevision?: number) => Promise<void>
+        configure?: (presentation: { auto?: boolean }, owner?: unknown) => () => void
       }
     }
-    settings = holder.settings.register(SETTINGS_NAMESPACE, FailoverSettingsSchema, {
-      base: DEFAULT_SETTINGS,
-    })
+    const disposeConfigure = typeof holder.settings.configure === 'function'
+      ? holder.settings.configure({ auto: false }, ctx.fiber)
+      : () => {}
+    settings = {
+      get(): FailoverSettings {
+        const row = holder.settings.describe().find(candidate => candidate.ns === SETTINGS_NAMESPACE)
+        const value = row?.value
+        if (typeof value !== 'object' || value === null) return { ...DEFAULT_SETTINGS }
+        const record = value as Partial<FailoverSettings>
+        return {
+          enabled: record.enabled ?? DEFAULT_SETTINGS.enabled,
+          currentIndex: record.currentIndex ?? DEFAULT_SETTINGS.currentIndex,
+          queue: Array.isArray(record.queue) ? [...record.queue] : [...DEFAULT_SETTINGS.queue],
+          circuits: Array.isArray(record.circuits) ? [...record.circuits] : [...(DEFAULT_SETTINGS.circuits ?? [])],
+        }
+      },
+      async update(patch) {
+        const row = holder.settings.describe().find(candidate => candidate.ns === SETTINGS_NAMESPACE)
+        await holder.settings.update(SETTINGS_NAMESPACE, patch, row?.revision)
+      },
+    }
     publish()
     return () => {
+      disposeConfigure()
       settings = undefined
     }
   })

@@ -54,6 +54,10 @@ interface Config {
    * transport so a backup P is used instead of waiting out `llm-retry`.
    */
   immediateCodes?: string[];
+  enabled?: boolean;
+  currentIndex?: number;
+  queue?: QueueRoute[];
+  circuits?: CircuitHealth[];
 }
 /** Config after schema defaults. */
 interface ResolvedConfig {

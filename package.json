@@ -1,6 +1,6 @@
 {
   "name": "@x1a0f3n9/dsh-failover-queue",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "description": "CC Switch-style P1/P2/P3 model failover for DeepSeek Harness. Circuit probe failback to P1.",
   "author": "LunFengChen",
   "license": "MIT",
@@ -45,9 +45,9 @@
   "dsh": {
     "plugin": {
       "title": "Failover queue",
-      "titleZh": "故障转移队列",
+      "titleZh": "\u6545\u969c\u8f6c\u79fb\u961f\u5217",
       "description": "P1/P2/P3 provider+model failover with a composer toggle and drag-reorder panel.",
-      "descriptionZh": "P1/P2/P3 供应商+模型故障转移。输入框开关，点进去拖拽改优先级。"
+      "descriptionZh": "P1/P2/P3 \u4f9b\u5e94\u5546+\u6a21\u578b\u6545\u969c\u8f6c\u79fb\u3002\u8f93\u5165\u6846\u5f00\u5173\uff0c\u70b9\u8fdb\u53bb\u62d6\u62fd\u6539\u4f18\u5148\u7ea7\u3002"
     },
     "bundle": {
       "patch": "./cordis.patch.yml"
